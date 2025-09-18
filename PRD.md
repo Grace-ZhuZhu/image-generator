@@ -555,6 +555,251 @@ generated_names
 3. **功能验证** - 每个阶段完成后进行完整的功能测试
 4. **回滚准备** - 保留Git历史，确保可以快速回滚
 
+## 🔒 安全架构设计
+
+### 整体安全策略
+
+AI宠物照片生成平台面临多重安全挑战，包括用户数据保护、图片内容安全、API滥用防护等。我们采用多层防御架构，确保平台安全可靠。
+
+### 用户上传图片安全防御
+
+#### 1. 文件上传安全检查
+```typescript
+// 文件类型和大小验证
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILES_PER_REQUEST = 3;
+
+// 文件内容验证
+interface FileSecurityCheck {
+  mimeTypeValidation: boolean;    // MIME类型验证
+  fileSignatureCheck: boolean;    // 文件头签名检查
+  malwareScanning: boolean;       // 恶意软件扫描
+  contentModeration: boolean;     // 内容审核
+}
+```
+
+#### 2. 图片内容安全审核
+```mermaid
+flowchart TD
+    A[用户上传图片] --> B[基础文件验证]
+    B --> C[文件类型检查]
+    C --> D[文件大小限制]
+    D --> E[病毒扫描]
+    E --> F[内容审核AI]
+    F --> G{审核结果}
+    G -->|通过| H[存储到Supabase]
+    G -->|拒绝| I[返回错误信息]
+    H --> J[生成安全URL]
+
+    subgraph "内容审核规则"
+        F1[成人内容检测]
+        F2[暴力内容检测]
+        F3[宠物识别验证]
+        F4[图片质量检查]
+    end
+
+    F --> F1
+    F --> F2
+    F --> F3
+    F --> F4
+```
+
+#### 3. 存储安全策略
+- **隔离存储**：用户上传图片与生成图片分别存储
+- **访问控制**：基于RLS（Row Level Security）的权限控制
+- **临时URL**：生成带过期时间的签名URL
+- **CDN保护**：通过Supabase CDN提供安全的图片访问
+
+### API安全防护架构
+
+#### 1. 认证与授权
+```typescript
+// 多层认证策略
+interface SecurityLayers {
+  authentication: {
+    supabaseJWT: boolean;         // Supabase JWT验证
+    sessionValidation: boolean;   // 会话有效性检查
+    deviceFingerprint: boolean;   // 设备指纹识别
+  };
+  authorization: {
+    roleBasedAccess: boolean;     // 基于角色的访问控制
+    resourcePermission: boolean;  // 资源级权限检查
+    rateLimiting: boolean;        // 请求频率限制
+  };
+}
+```
+
+#### 2. API速率限制与防滥用
+```typescript
+// 分层速率限制策略
+const RATE_LIMITS = {
+  // 未认证用户
+  anonymous: {
+    imageGeneration: '1/hour',
+    imageUpload: '5/hour',
+    apiCalls: '100/hour'
+  },
+  // 认证用户
+  authenticated: {
+    imageGeneration: '10/hour',
+    imageUpload: '50/hour',
+    apiCalls: '1000/hour'
+  },
+  // 付费用户
+  premium: {
+    imageGeneration: '100/hour',
+    imageUpload: '200/hour',
+    apiCalls: '5000/hour'
+  }
+};
+```
+
+#### 3. 输入验证与清理
+```typescript
+// 严格的输入验证
+interface InputValidation {
+  fileUpload: {
+    typeWhitelist: string[];      // 文件类型白名单
+    sizeLimit: number;            // 文件大小限制
+    nameValidation: RegExp;       // 文件名验证
+  };
+  apiParameters: {
+    sqlInjectionPrevention: boolean;  // SQL注入防护
+    xssProtection: boolean;           // XSS攻击防护
+    parameterValidation: boolean;     // 参数格式验证
+  };
+}
+```
+
+### 网站整体安全防御
+
+#### 1. 网络层安全
+```mermaid
+flowchart LR
+    A[用户请求] --> B[CDN/WAF]
+    B --> C[负载均衡器]
+    C --> D[Next.js应用]
+    D --> E[Supabase后端]
+
+    subgraph "安全防护层"
+        B1[DDoS防护]
+        B2[SQL注入防护]
+        B3[XSS防护]
+        B4[CSRF防护]
+        B5[Bot检测]
+    end
+
+    B --> B1
+    B --> B2
+    B --> B3
+    B --> B4
+    B --> B5
+```
+
+#### 2. 应用层安全措施
+- **HTTPS强制**：所有通信使用TLS 1.3加密
+- **CSRF保护**：使用Next.js内置CSRF令牌
+- **XSS防护**：严格的内容安全策略(CSP)
+- **SQL注入防护**：使用Supabase参数化查询
+- **会话安全**：安全的Cookie配置和会话管理
+
+#### 3. 数据安全保护
+```sql
+-- 行级安全策略示例
+CREATE POLICY "Users can only access their own pet generations"
+ON pet_generations FOR ALL
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can only upload to their own folder"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'pet-uploads' AND
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+```
+
+### 内容安全与合规
+
+#### 1. 内容审核流程
+```typescript
+interface ContentModerationPipeline {
+  preUpload: {
+    clientSideValidation: boolean;    // 客户端预检查
+    fileSizeCheck: boolean;           // 文件大小检查
+    typeValidation: boolean;          // 类型验证
+  };
+  serverSide: {
+    virusScanning: boolean;           // 病毒扫描
+    aiContentModeration: boolean;     // AI内容审核
+    humanReview: boolean;             // 人工审核（可选）
+  };
+  postGeneration: {
+    generatedContentCheck: boolean;   // 生成内容检查
+    communityReporting: boolean;      // 社区举报机制
+    periodicReview: boolean;          // 定期审核
+  };
+}
+```
+
+#### 2. 隐私保护措施
+- **数据最小化**：只收集必要的用户数据
+- **数据加密**：敏感数据静态加密存储
+- **访问日志**：完整的数据访问审计日志
+- **用户控制**：用户可删除自己的所有数据
+
+### 监控与应急响应
+
+#### 1. 安全监控系统
+```typescript
+interface SecurityMonitoring {
+  realTimeAlerts: {
+    suspiciousActivity: boolean;      // 可疑活动检测
+    unusualTraffic: boolean;          // 异常流量监控
+    failedAuthentication: boolean;    // 认证失败监控
+    apiAbuseDetection: boolean;       // API滥用检测
+  };
+  logging: {
+    securityEvents: boolean;          // 安全事件日志
+    userActivity: boolean;            // 用户活动日志
+    systemPerformance: boolean;       // 系统性能监控
+    errorTracking: boolean;           // 错误追踪
+  };
+}
+```
+
+#### 2. 应急响应计划
+- **事件分级**：根据严重程度分为P0-P3级别
+- **响应团队**：24/7安全响应团队
+- **自动化响应**：自动封禁可疑IP和账户
+- **用户通知**：及时通知受影响用户
+
+### 合规性要求
+
+#### 1. 数据保护法规遵循
+- **GDPR合规**：欧盟用户数据保护
+- **CCPA合规**：加州消费者隐私法案
+- **中国网络安全法**：中国用户数据保护
+
+#### 2. 内容合规标准
+- **儿童保护**：严格的未成年人内容保护
+- **版权保护**：防止侵权内容生成
+- **社区准则**：明确的内容使用规范
+
+### 安全开发生命周期
+
+#### 1. 开发阶段安全
+- **代码审查**：强制性安全代码审查
+- **依赖扫描**：第三方依赖安全扫描
+- **静态分析**：自动化代码安全分析
+- **渗透测试**：定期安全渗透测试
+
+#### 2. 部署安全
+- **环境隔离**：开发、测试、生产环境隔离
+- **密钥管理**：安全的密钥存储和轮换
+- **访问控制**：最小权限原则
+- **审计日志**：完整的部署和变更日志
+
 ---
 
 **文档版本**: v1.0
