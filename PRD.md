@@ -429,12 +429,22 @@ GET /api/user-generations?userId=xxx&page=1&limit=10
 #### 📝 详细任务清单
 
 **2.1 主题管理API开发**
-- [ ] **创建主题管理API** (`/api/themes`)
+- [x] **创建主题管理API** (`/api/themes`)
   - 实现 GET 请求获取所有主题
   - 支持排序和启用/禁用状态筛选
   - 添加主题使用统计功能
   - **预计工时**: 1天
   - **技术要点**: Supabase查询优化，缓存策略
+
+- [ ] 后续优化建议：
+
+目前 usage 排序在内存完成，考虑到主题数量较小对性能影响可接受；若后续主题量增大，可通过数据库视图/RPC 聚合并在数据库层排序。
+已按 PRD 建议支持 active 过滤、常用字段排序、分页与最小统计项；未来可扩展更多筛选（如按主题关键字）。
+建议为以下字段添加索引（在数据库迁移中落实）：
+reference_images(theme_id, usage_count, created_at)
+themes(sort_order, is_active)
+如需支持“主题热门度”更复杂口径（例如按 pet_generations 计数），可追加一次聚合查询或建立物化视图。
+
 
 **2.2 参考图片API开发**
 - [ ] **创建参考图片API** (`/api/reference-images`)
