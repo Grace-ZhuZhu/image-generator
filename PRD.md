@@ -67,7 +67,7 @@ themes (
     created_at timestamp with time zone default now()
 );
 
--- 参考图片模板表  
+-- 参考图片模板表
 reference_images (
     id uuid primary key,
     theme_id uuid references themes(id),
@@ -78,20 +78,35 @@ reference_images (
     created_at timestamp with time zone default now()
 );
 
--- 宠物图片生成记录表
+-- 宠物图片生成记录表（增加任务与错误观测字段）
 pet_generations (
     id uuid primary key,
+    task_id text unique,                          -- 生成任务ID
+    idempotency_key text,                         -- 幂等键，防重复扣费/下单
     user_id uuid references auth.users(id),
-    reference_image_id uuid references reference_images(id),
+    reference_image_id uuid references reference_images(id) on delete set null,
     pet_image_urls text[] not null,
     generated_image_url text,
     quality_level text check (quality_level in ('normal', '2k', '4k')),
     credits_used integer not null,
-    generation_status text default 'pending',
+    generation_status text check (
+      generation_status in ('pending','running','succeeded','failed','cancelled')
+    ) default 'pending',
+    error_code text,
+    error_message text,
+    started_at timestamp with time zone,
+    completed_at timestamp with time zone,
     is_public boolean default false,
     metadata jsonb default '{}',
     created_at timestamp with time zone default now()
 );
+
+-- 查询与排序常用索引（建议）
+-- reference_images 高频筛选与热门排序
+-- CREATE INDEX idx_reference_images_theme_usage ON reference_images(theme_id, usage_count DESC, created_at DESC);
+-- pet_generations 用户维度查询与状态筛选
+-- CREATE INDEX idx_pet_generations_user_created ON pet_generations(user_id, created_at DESC);
+-- CREATE INDEX idx_pet_generations_status ON pet_generations(generation_status);
 ```
 
 ## 🎨 UI/UX 设计方案
@@ -313,13 +328,20 @@ components/
 
 ### 核心API设计
 ```typescript
-// 生成宠物照片
+// 生成宠物照片（幂等）
+// Header: Idempotency-Key: <uuid>
 POST /api/pet-images/generate
 {
   referenceImageId: string,
   petImageUrls: string[],
   qualityLevel: 'normal' | '2k' | '4k'
 }
+// Response: { taskId: string }
+
+// 查询生成任务状态
+GET /api/pet-images/status?taskId=xxx
+// Response: { status: 'pending'|'running'|'succeeded'|'failed'|'cancelled',
+//             generatedImageUrl?: string, errorCode?: string, errorMessage?: string }
 
 // 获取主题列表
 GET /api/themes
@@ -433,12 +455,14 @@ GET /api/user-generations?userId=xxx&page=1&limit=10
 
 **2.4 AI图片生成核心**
 - [ ] **开发AI生成API** (`/api/pet-images/generate`)
-  - Seedream 4 API集成
-  - 积分验证和扣除逻辑
-  - 生成队列管理（处理并发）
-  - 生成状态跟踪
+  - Seedream 4 API集成（提供者适配层：易于切换/Mock）
+  - 支持 Idempotency-Key 请求头，重复请求不重复扣费/不重复创建任务
+  - 返回 taskId；新增状态查询接口：`GET /api/pet-images/status?taskId=xxx`
+  - 生成队列与并发控制（速率限制/排队提示）
+  - 生成状态机：pending → running → succeeded/failed/cancelled；含超时与取消策略
+  - 失败重试（最大N次）与失败后积分自动补偿（幂等）
   - **预计工时**: 3天
-  - **技术要点**: 异步处理，错误重试机制
+  - **技术要点**: 异步处理、重试与补偿、提供者抽象与Mock
 
 **2.5 用户画廊系统**
 - [ ] **创建用户画廊API** (`/api/user-generations`)
@@ -451,18 +475,19 @@ GET /api/user-generations?userId=xxx&page=1&limit=10
 **2.6 积分系统集成**
 - [ ] **扩展积分系统**
   - 支持宠物生成定价（100/300/500积分）
-  - 积分消费记录
-  - 余额不足处理
+  - 扣费事务语义：下单→扣费预占→生成→结果入库→扣费确认（失败自动回补）
+  - 幂等处理（基于 idempotency_key 的唯一性保障）
+  - 积分消费历史记录（失败补偿记录）
   - **预计工时**: 1天
-  - **技术要点**: 事务处理，数据一致性
+  - **技术要点**: 事务处理、数据一致性、补偿机制
 
 **2.7 安全中间件**
 - [ ] **实现安全防护**
-  - API速率限制
-  - 输入验证和清理
-  - 内容审核集成
+  - 基于Redis的API速率限制（阈值与封禁策略与安全章节一致）
+  - 入参统一校验（zod/valibot），错误码与返回格式标准化
+  - MVP阶段内容审核以基础校验为主（MIME/大小/文件头签名），AI审核延后到V1.1
   - **预计工时**: 2天
-  - **技术要点**: 中间件设计，安全策略
+  - **技术要点**: 中间件链路、速率限制与输入校验标准化
 
 **预计完成时间**: 2-3周
 **负责人**: 后端开发工程师 + AI集成工程师
@@ -598,11 +623,11 @@ GET /api/user-generations?userId=xxx&page=1&limit=10
 
 **4.7 分析和跟踪**
 - [ ] **添加分析跟踪**
-  - 用户行为跟踪
-  - 转化率监控
-  - 关键指标收集
+  - 事件清单：view_theme, select_reference, open_quality_selector, upload_pet_photos, start_generation, generation_status_{pending|running|succeeded|failed}, generation_success, generation_fail, download_image, share_click, credits_low, credits_purchase_start, credits_purchase_success
+  - 工具选型：PostHog 或 Plausible（二选一，MVP阶段），支持匿名事件与登录用户ID绑定
+  - 数据治理：事件命名规范、版本字段、隐私合规（不采集个人敏感信息）
   - **预计工时**: 1天
-  - **技术要点**: 分析工具集成
+  - **技术要点**: 前端SDK接入、（可选）后端事件回补
 
 **预计完成时间**: 1-2周
 **负责人**: 全栈开发工程师 + 产品经理
@@ -1001,9 +1026,11 @@ flowchart TD
 ```
 
 #### 3. 存储安全策略
+- **目录规范**：uploads/{userId}/raw 与 generated/{userId}/final 分开存储
+- **尺寸与压缩**：客户端预压缩；上传限制最长边 ≤ 3000px，生成图最长边 ≤ 4096px
 - **隔离存储**：用户上传图片与生成图片分别存储
 - **访问控制**：基于RLS（Row Level Security）的权限控制
-- **临时URL**：生成带过期时间的签名URL
+- **临时URL**：生成带过期时间的签名URL（下载/分享用）
 - **CDN保护**：通过Supabase CDN提供安全的图片访问
 
 ### API安全防护架构
@@ -1212,12 +1239,13 @@ interface SecurityMonitoring {
 - [ ] 创建主题管理API (`GET /api/themes`)
 - [ ] 实现参考图片API (`GET /api/reference-images`)
 - [ ] 开发图片上传API (`POST /api/upload`)
-- [ ] 集成Seedream 4 AI生成API (`POST /api/pet-images/generate`)
+- [ ] 集成Seedream 4 AI生成API（支持 Idempotency-Key 幂等）(`POST /api/pet-images/generate`)
+- [ ] 创建生成状态查询接口 (`GET /api/pet-images/status`)
 - [ ] 创建用户画廊API (`GET /api/user-generations`)
-- [ ] 扩展积分系统支持宠物生成定价
-- [ ] 实现安全中间件和速率限制
-- [ ] 添加内容审核和输入验证
-- [ ] 编写API文档和测试用例
+- [ ] 扩展积分系统支持宠物生成定价（事务/失败补偿/幂等）
+- [ ] 实现安全中间件和速率限制（Redis），统一入参校验（zod）
+- [ ] 提供AI Provider抽象与Mock实现
+- [ ] 编写API文档和测试用例（含错误码与重试策略）
 
 ### 🎨 Phase 3: 前端组件开发
 - [ ] 构建主题画廊瀑布流组件
@@ -1240,11 +1268,13 @@ interface SecurityMonitoring {
 - [ ] 集成用户行为分析跟踪
 
 ### 🧪 Phase 5: 测试与部署
-- [ ] 编写单元测试（覆盖率 > 80%）
-- [ ] 执行集成测试和E2E测试
-- [ ] 进行安全测试和漏洞评估
+- [ ] 编写单元测试（覆盖率 > 80%，AI Provider 使用 Mock）
+- [ ] 执行集成测试和E2E测试（注册→购买积分→上传→生成→下载/分享）
+- [ ] 进行安全测试和漏洞评估（上传/鉴权/速率限制）
 - [ ] 实施性能优化和缓存策略
 - [ ] 配置监控和日志系统
+- [ ] 准备测试Seed数据与Mock Provider（本地/测试环境）
+- [ ] 恢复/新增最小法律页面（隐私/条款/内容准则）
 - [ ] 设置CI/CD部署管道
 - [ ] 生产环境部署和监控
 
@@ -1292,6 +1322,12 @@ cp .env.example .env.local
 
 # 4. 数据库迁移
 npx supabase db reset
+
+# 4.1（可选）初始化测试种子数据
+# npx supabase db seed --file supabase/seed.sql   # 如有 seed 脚本
+
+# 4.2（可选）启用本地AI Mock 以便脱网开发
+# export USE_AI_MOCK=true   # 或在 .env.local 中配置 USE_AI_MOCK=true
 
 # 5. 启动开发服务器
 npm run dev
