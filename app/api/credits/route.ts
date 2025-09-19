@@ -51,7 +51,7 @@ export async function GET() {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           metadata: {
-            source: 'chinese_name_generator',
+            source: 'ai_pet_photography',
             initial_credits: 3
           }
         })
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
         customer_id: customer.id,
         amount: amount,
         type: 'subtract',
-        description: operation || 'name_generation',
+        description: operation || 'pet_photo_generation',
         metadata: {
           operation: operation,
           credits_before: customer.credits,

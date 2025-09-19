@@ -1,5 +1,5 @@
 -- IP限制表和函数，支持未注册用户免费生成
--- 每个IP每天可以免费生成1个中文名字
+-- 每个IP每天可以免费生成1张宠物照片
 
 -- 创建IP使用记录表
 CREATE TABLE IF NOT EXISTS public.ip_usage_logs (

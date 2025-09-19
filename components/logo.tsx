@@ -8,16 +8,12 @@ export function Logo() {
       className="flex items-center gap-2 hover:opacity-90 transition-opacity"
     >
       <div className="flex items-center justify-center">
-        <Image
-          src="/images/chinesename-logo.png"
-          alt="ChineseName.club Logo"
-          width={32}
-          height={32}
-          className="w-8 h-8"
-        />
+        <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+          <span className="text-primary font-bold text-lg">🐾</span>
+        </div>
       </div>
       <span className="font-bold text-lg bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-        ChineseName.club
+        AI-Petography
       </span>
     </Link>
   );

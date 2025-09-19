@@ -505,7 +505,7 @@ generated_names
    - 删除 `components/product/` 目录
    - 删除相关的仪表板组件
 
-2. **删除API路由**
+[x] **删除API路由**
    - 删除 `app/api/chinese-names/`
    - 删除 `app/api/saved-names/`
    - 删除 `app/api/popular-names/`

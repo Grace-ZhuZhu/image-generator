@@ -64,7 +64,7 @@ export function useCredits(): UseCreditsResult {
     }
   };
 
-  const spendCredits = async (amount: number, operation = 'name_generation'): Promise<boolean> => {
+  const spendCredits = async (amount: number, operation = 'pet_photo_generation'): Promise<boolean> => {
     if (!user || !credits) {
       setError('User not authenticated or credits not loaded');
       return false;
