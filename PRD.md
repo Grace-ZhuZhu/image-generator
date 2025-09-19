@@ -475,11 +475,11 @@ credits_history (
 
 #### 2. 中文名字相关数据库表 ❌ 删除
 ```sql
--- 删除以下迁移文件和相关表
+[x] -- 删除以下迁移文件和相关表
 supabase/migrations/20241229000000_chinese_names_tables.sql
 supabase/migrations/20241231000000_generation_batches.sql
 
--- 删除的表：
+[x] -- 删除的表：
 name_generation_logs
 saved_names
 popular_names
@@ -487,7 +487,7 @@ generation_batches
 generated_names
 ```
 
-#### 3. 业务特定依赖 ❌ 删除
+[x] #### 3. 业务特定依赖 ❌ 删除
 ```json
 // package.json 中可以移除的依赖
 {
@@ -530,13 +530,13 @@ generated_names
    - 更新项目介绍为AI宠物照片生成平台
 
 #### 阶段3：验证框架完整性（1天）
-1. **功能验证**
+1. **功能验证** --> Later
    - 用户注册/登录流程
    - 积分系统正常工作
    - 支付流程完整
    - 仪表板基础功能
 
-2. **代码清理**
+2. **代码清理** --> Later
    - 移除未使用的导入和依赖
    - 清理TypeScript类型定义
    - 更新测试用例

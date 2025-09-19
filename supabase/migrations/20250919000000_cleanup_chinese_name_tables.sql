@@ -14,6 +14,8 @@
 -- - generation_batches (Chinese name generation batches)
 -- - generated_names (Generated Chinese names)
 -- - saved_names (User saved Chinese names)
+-- - name_generation_logs (Name generation logs)
+-- - popular_names (Popular names cache)
 --
 -- This script uses IF EXISTS to prevent errors if tables don't exist
 
@@ -21,6 +23,8 @@
 DROP TABLE IF EXISTS public.saved_names CASCADE;
 DROP TABLE IF EXISTS public.generated_names CASCADE;
 DROP TABLE IF EXISTS public.generation_batches CASCADE;
+DROP TABLE IF EXISTS public.name_generation_logs CASCADE;
+DROP TABLE IF EXISTS public.popular_names CASCADE;
 
 -- Step 2: Drop any remaining indexes that might reference these tables
 DROP INDEX IF EXISTS generation_batches_user_id_idx;
@@ -31,11 +35,17 @@ DROP INDEX IF EXISTS generated_names_position_idx;
 DROP INDEX IF EXISTS generated_names_chinese_name_idx;
 DROP INDEX IF EXISTS saved_names_user_id_idx;
 DROP INDEX IF EXISTS saved_names_chinese_name_idx;
+DROP INDEX IF EXISTS name_generation_logs_user_id_idx;
+DROP INDEX IF EXISTS name_generation_logs_created_at_idx;
+DROP INDEX IF EXISTS popular_names_name_idx;
+DROP INDEX IF EXISTS popular_names_usage_count_idx;
 
 -- Step 3: Drop any triggers related to these tables
 DROP TRIGGER IF EXISTS handle_generation_batches_updated_at ON public.generation_batches;
 DROP TRIGGER IF EXISTS handle_generated_names_updated_at ON public.generated_names;
 DROP TRIGGER IF EXISTS handle_saved_names_updated_at ON public.saved_names;
+DROP TRIGGER IF EXISTS handle_name_generation_logs_updated_at ON public.name_generation_logs;
+DROP TRIGGER IF EXISTS handle_popular_names_updated_at ON public.popular_names;
 
 -- Step 4: Drop any RLS policies related to these tables
 -- (Policies are automatically dropped when tables are dropped, but being explicit)
@@ -75,7 +85,7 @@ SELECT
     jsonb_build_object(
         'cleanup_date', now(),
         'cleanup_type', 'chinese_name_tables_removal',
-        'tables_removed', ARRAY['generation_batches', 'generated_names', 'saved_names']
+        'tables_removed', ARRAY['generation_batches', 'generated_names', 'saved_names', 'name_generation_logs', 'popular_names']
     )
 FROM public.customers c
 WHERE c.creem_customer_id LIKE 'admin_%'
@@ -97,7 +107,7 @@ SELECT
     jsonb_build_object(
         'cleanup_date', now(),
         'cleanup_type', 'chinese_name_tables_removal',
-        'tables_removed', ARRAY['generation_batches', 'generated_names', 'saved_names'],
+        'tables_removed', ARRAY['generation_batches', 'generated_names', 'saved_names', 'name_generation_logs', 'popular_names'],
         'note', 'System cleanup operation'
     )
 FROM public.customers c
