@@ -498,7 +498,7 @@ generated_names
 
 ### 修改实施计划
 
-#### 阶段1：清理业务代码（1-2天）
+[x] #### 阶段1：清理业务代码（1-2天）
 [x] **删除页面和组件**
    - 删除 `app/page.tsx`（当前名字生成器主页）
    - 删除 `app/name-detail/`, `app/results/`, `app/product/`
@@ -511,21 +511,21 @@ generated_names
    - 删除 `app/api/popular-names/`
    - 删除 `app/api/generate-pdf/`
 
-3. **清理数据库**
+[x] **清理数据库**
    - 删除中文名字相关的迁移文件
    - 在生产环境中谨慎删除相关表
 
-#### 阶段2：更新框架配置（1天）
-1. **更新导航和路由**
+[x] #### 阶段2：更新框架配置（1天）
+[x] **更新导航和路由**
    - 修改 `components/header.tsx` 移除名字生成器相关导航
    - 更新 `middleware.ts` 路由保护规则
    - 创建新的主页 `app/page.tsx`
 
-2. **更新环境变量**
+[x] **更新环境变量**
    - 移除 `OPENROUTER_API_KEY` 等名字生成相关配置
    - 添加 Seedream 4 API 相关配置
 
-3. **更新文档**
+[x] **更新文档**
    - 修改 `README.md` 移除中文名字生成器描述
    - 更新项目介绍为AI宠物照片生成平台
 
