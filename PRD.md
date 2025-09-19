@@ -447,7 +447,7 @@ themes(sort_order, is_active)
 
 
 **2.2 参考图片API开发**
-- [ ] **创建参考图片API** (`/api/reference-images`)
+- [x] **创建参考图片API** (`/api/reference-images`)
   - 实现主题筛选和分页功能
   - 基于使用次数的热门排序
   - 支持瀑布流布局的数据格式
