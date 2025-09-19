@@ -499,7 +499,7 @@ generated_names
 ### 修改实施计划
 
 #### 阶段1：清理业务代码（1-2天）
-1. **删除页面和组件**
+[x] **删除页面和组件**
    - 删除 `app/page.tsx`（当前名字生成器主页）
    - 删除 `app/name-detail/`, `app/results/`, `app/product/`
    - 删除 `components/product/` 目录
