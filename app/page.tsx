@@ -80,6 +80,56 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* 悬浮操作栏：移到主菜单（Header）下方，固定在顶部 */}
+      <div className="fixed inset-x-0 top-16 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <div className="container mx-auto max-w-6xl px-4 py-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-1 items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="pet-files" className="sr-only">{L.ui.uploadLabel}</Label>
+                <Input id="pet-files" type="file" multiple accept="image/*" onChange={onFileChange} className="max-w-xs" />
+                <div className="text-xs text-muted-foreground">{L.ui.max3}</div>
+              </div>
+              {files.length > 0 && (
+                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
+                  {files.map((f, i) => (
+                    <Badge key={i} variant="secondary" className="truncate max-w-[120px]">{f.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4">
+              <RadioGroup
+                value={quality}
+                onValueChange={(v) => setQuality(v as any)}
+                className="grid grid-cols-3 gap-3"
+              >
+                <label className="flex items-center gap-2 rounded-md border p-2">
+                  <RadioGroupItem value="normal" id="q1-top" />
+                  <span className="text-sm">{L.quality.normal}</span>
+                </label>
+                <label className="flex items-center gap-2 rounded-md border p-2">
+                  <RadioGroupItem value="2k" id="q2-top" />
+                  <span className="text-sm">{L.quality.q2k}</span>
+                </label>
+                <label className="flex items-center gap-2 rounded-md border p-2">
+                  <RadioGroupItem value="4k" id="q3-top" />
+                  <span className="text-sm">{L.quality.q4k}</span>
+                </label>
+              </RadioGroup>
+
+              <Button onClick={handleGenerate} disabled={isLoading} className="whitespace-nowrap">
+                <Zap className="mr-2 h-4 w-4" /> {isLoading ? L.actions.generating : L.actions.start}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 顶部悬浮操作栏占位，避免覆盖内容 */}
+      <div className="h-20" />
+
       {/* Hero Section - 保留 */}
       <section className="relative overflow-hidden py-16 md:py-20 px-4">
         <div className="container mx-auto max-w-6xl">
@@ -187,53 +237,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 底部悬浮：上传+质量+开始生成 */}
-      <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="container mx-auto max-w-6xl px-4 py-3">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-1 items-center gap-3">
 
-              <div className="flex items-center gap-2">
-                <Label htmlFor="pet-files" className="sr-only">{L.ui.uploadLabel}</Label>
-                <Input id="pet-files" type="file" multiple accept="image/*" onChange={onFileChange} className="max-w-xs" />
-                <div className="text-xs text-muted-foreground">{L.ui.max3}</div>
-              </div>
-              {files.length > 0 && (
-                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                  {files.map((f, i) => (
-                    <Badge key={i} variant="secondary" className="truncate max-w-[120px]">{f.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4">
-              <RadioGroup
-                value={quality}
-                onValueChange={(v) => setQuality(v as any)}
-                className="grid grid-cols-3 gap-3"
-              >
-                <label className="flex items-center gap-2 rounded-md border p-2">
-                  <RadioGroupItem value="normal" id="q1" />
-                  <span className="text-sm">{L.quality.normal}</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-md border p-2">
-                  <RadioGroupItem value="2k" id="q2" />
-                  <span className="text-sm">{L.quality.q2k}</span>
-                </label>
-                <label className="flex items-center gap-2 rounded-md border p-2">
-                  <RadioGroupItem value="4k" id="q3" />
-                  <span className="text-sm">{L.quality.q4k}</span>
-                </label>
-              </RadioGroup>
-
-              <Button onClick={handleGenerate} disabled={isLoading} className="whitespace-nowrap">
-                <Zap className="mr-2 h-4 w-4" /> {isLoading ? L.actions.generating : L.actions.start}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
