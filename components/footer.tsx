@@ -2,7 +2,6 @@
 
 import { Logo } from "./logo";
 import Link from "next/link";
-import { Github } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 const footerLinks = [
@@ -59,10 +58,6 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-6">
           <div className="col-span-full lg:col-span-2">
             <Logo />
-            <p className="mt-4 text-sm text-muted-foreground">
-              Starter kit for your next project. Built with Next.js and
-              Creem.io.
-            </p>
           </div>
           <div className="col-span-2 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:col-span-4">
             {footerLinks.map((group) => (
@@ -82,15 +77,6 @@ export function Footer() {
               </div>
             ))}
           </div>
-        </div>
-        <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t pt-8 md:flex-row">
-          <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-            Built by{" "}
-            <Link href="#" className="font-medium underline underline-offset-4">
-              Raphael Starter
-            </Link>
-            .
-          </p>
         </div>
       </div>
     </footer>

@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { createClient } from "@/utils/supabase/server";
 import { Toaster } from "@/components/ui/toaster";
+import { I18nProvider } from "@/lib/i18n/index";
 import "./globals.css";
 
 const baseUrl = process.env.BASE_URL
@@ -52,12 +53,14 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="relative min-h-screen">
-            <Header user={user} />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
-          <Toaster />
+          <I18nProvider>
+            <div className="relative min-h-screen">
+              <Header user={user} />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
+            <Toaster />
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

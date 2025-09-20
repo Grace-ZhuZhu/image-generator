@@ -7,6 +7,25 @@ import { ThemeSwitcher } from "./theme-switcher";
 import { Logo } from "./logo";
 import { usePathname } from "next/navigation";
 import { MobileNav } from "./mobile-nav";
+import { useI18n } from "@/lib/i18n/index";
+
+function LangSelector() {
+  const { lang, setLang, L } = useI18n();
+  return (
+    <>
+      <span className="text-xs text-muted-foreground">{L.ui.language}</span>
+      <select
+        value={lang}
+        onChange={(e) => setLang(e.target.value as any)}
+        className="h-8 rounded-md border bg-background px-2 text-sm"
+      >
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+      </select>
+    </>
+  );
+}
+
 
 interface HeaderProps {
   user: any;
@@ -40,7 +59,7 @@ export default function Header({ user }: HeaderProps) {
         <div className="flex items-center">
           <Logo />
         </div>
-        
+
         {/* Centered Navigation */}
         <nav className="hidden md:flex items-center gap-8 absolute left-1/2 transform -translate-x-1/2">
           {navItems.map((item) => (
@@ -56,6 +75,10 @@ export default function Header({ user }: HeaderProps) {
 
         <div className="flex items-center gap-2">
           <ThemeSwitcher />
+          {/* Language selector before auth buttons */}
+          <div className="hidden md:flex items-center gap-2">
+            <LangSelector />
+          </div>
           {user ? (
             <div className="hidden md:flex items-center gap-2">
               {isDashboard && (
