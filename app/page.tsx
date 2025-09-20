@@ -1,18 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+
+
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Share2, Zap, Flame, RefreshCw, Download, X } from "lucide-react";
+import { Share2, Zap, Flame, RefreshCw, Download, X, Plus } from "lucide-react";
 
 type RefItem = { id: string; emoji: string; title: string; usage: number; theme: string };
 
@@ -54,6 +54,17 @@ export default function HomePage() {
   const { L } = useI18n();
 
 
+  const [previews, setPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => {
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [files]);
+
+
   const filtered = useMemo(
     () => (theme === "all" ? MOCK_ITEMS : MOCK_ITEMS.filter((i) => i.theme === theme)),
     [theme]
@@ -85,18 +96,38 @@ export default function HomePage() {
         <div className="container mx-auto max-w-6xl px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="pet-files" className="sr-only">{L.ui.uploadLabel}</Label>
-                <Input id="pet-files" type="file" multiple accept="image/*" onChange={onFileChange} className="max-w-xs" />
-                <div className="text-xs text-muted-foreground">{L.ui.max3}</div>
-              </div>
-              {files.length > 0 && (
-                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                  {files.map((f, i) => (
-                    <Badge key={i} variant="secondary" className="truncate max-w-[120px]">{f.name}</Badge>
+              {files.length > 0 && previews.length > 0 && (
+                <div className="flex items-center gap-2 overflow-x-auto">
+                  {previews.map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      alt={`preview-${i}`}
+                      className="h-10 w-10 rounded-md object-cover border"
+                    />
                   ))}
                 </div>
               )}
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  id="pet-files"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={onFileChange}
+                  className="sr-only"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-10 w-10 rounded-md border border-dashed flex items-center justify-center text-muted-foreground hover:bg-muted/50"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+                <div className="text-sm text-muted-foreground">{L.ui.uploadLabel}</div>
+                <div className="text-xs text-muted-foreground">{L.ui.max3}</div>
+              </div>
             </div>
 
             <div className="flex items-center gap-4">
