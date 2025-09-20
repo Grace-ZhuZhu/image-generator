@@ -71,8 +71,14 @@ export default function HomePage() {
   );
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = Array.from(e.target.files || []).slice(0, 3);
-    setFiles(next);
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+    setFiles((prev) => [...prev, ...picked].slice(0, 3));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeFileAt = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleGenerate = () => {
@@ -99,12 +105,21 @@ export default function HomePage() {
               {files.length > 0 && previews.length > 0 && (
                 <div className="flex items-center gap-2 overflow-x-auto">
                   {previews.map((src, i) => (
-                    <img
-                      key={i}
-                      src={src}
-                      alt={`preview-${i}`}
-                      className="h-10 w-10 rounded-md object-cover border"
-                    />
+                    <div key={i} className="relative h-10 w-10">
+                      <img
+                        src={src}
+                        alt={`preview-${i}`}
+                        className="h-10 w-10 rounded-md object-cover border"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Remove"
+                        onClick={() => removeFileAt(i)}
+                        className="absolute -top-1 -right-1 inline-flex h-4 w-4 items-center justify-center rounded-full border bg-background text-muted-foreground hover:bg-muted"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

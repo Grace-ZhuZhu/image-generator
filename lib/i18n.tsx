@@ -41,7 +41,7 @@ export const I18N = {
       q4k: "4K (500\ud83d\udc8e)",
     },
     actions: {
-      start: "Start AI Generation",
+      start: "Generate",
       generating: "Generating…",
     },
   },
