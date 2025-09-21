@@ -91,7 +91,7 @@ export type Dict = typeof I18N[Lang];
 type I18nContextValue = {
   lang: Lang;
   setLang: (lang: Lang) => void;
-  L: typeof I18N["en"];
+  L: Dict; // accept any locale dictionary shape
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);

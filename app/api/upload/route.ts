@@ -126,12 +126,13 @@ async function getImageDimensions(file: File): Promise<{ width: number; height: 
 function extractFiles(form: FormData): File[] {
   const files: File[] = [];
   // Common names: file, files, files[]
-  for (const [key, value] of form.entries()) {
-    if (!(value instanceof File)) continue;
-    if (key === "file" || key === "files" || key === "files[]" || key.startsWith("file")) {
-      files.push(value);
+  form.forEach((value, key) => {
+    if (value instanceof File) {
+      if (key === "file" || key === "files" || key === "files[]" || key.startsWith("file")) {
+        files.push(value);
+      }
     }
-  }
+  });
   return files;
 }
 
