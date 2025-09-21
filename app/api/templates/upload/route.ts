@@ -2,13 +2,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
 import { createServiceRoleClient } from "@/utils/supabase/service-role";
+import { isDev } from "@/utils/admin";
 
 // POST /api/templates/upload
 // form-data: file(Required), prompt(Required), title?, theme?
 export async function POST(req: Request) {
   try {
+    // Dev-only: disable in production
+    if (!isDev()) {
+      return NextResponse.json({ error: "Disabled in production" }, { status: 403 });
+    }
+
     const form = await req.formData();
     const file = form.get("file") as File | null;
     const title = (form.get("title") as string) || null;
@@ -30,11 +35,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "sharp is not installed" }, { status: 500 });
     }
 
-    // Current user (optional, for created_by)
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
     // Service role client for storage + DB writes
     const svc = createServiceRoleClient();
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       theme,
       prompt,
       images,
-      created_by: user?.id ?? null,
+      created_by: null,
     });
     if (error) throw error;
 
