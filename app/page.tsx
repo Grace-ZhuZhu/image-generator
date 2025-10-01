@@ -12,9 +12,9 @@ import { Card } from "@/components/ui/card";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Share2, Zap, Flame, RefreshCw, Download, X, Plus, Loader2 } from "lucide-react";
+import { Share2, Zap, Flame, RefreshCw, Download, X, Plus, Loader2, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { Template } from "@/types/templates";
 
 const THEMES = [
@@ -80,6 +80,11 @@ export default function HomePage() {
   const [themeTemplates, setThemeTemplates] = useState<Template[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [loadingThemeTemplates, setLoadingThemeTemplates] = useState(false);
+
+  // Image zoom state
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [viewingImage, setViewingImage] = useState<Template | null>(null);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
 
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,6 +162,7 @@ export default function HomePage() {
   const handleTemplateSelect = async (template: Template) => {
     setSelected(template);
     setExpandedTheme(null); // Close expanded view
+    setViewingImage(null); // Close dialog
     // Increment usage count
     try {
       await fetch(`/api/templates/${template.id}/increment-usage`, { method: "POST" });
@@ -164,6 +170,88 @@ export default function HomePage() {
       console.error("Failed to increment usage:", e);
     }
   };
+
+  const handleImageClick = (template: Template) => {
+    setViewingImage(template);
+    setZoomLevel(1); // Reset zoom when opening
+  };
+
+  // Zoom controls
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 0.25, 1));
+  };
+
+  const handleResetZoom = () => {
+    setZoomLevel(1);
+  };
+
+  // Carousel navigation
+  const handlePrevImage = () => {
+    if (!viewingImage) return;
+
+    // Get the current list of templates to navigate through
+    const currentList = expandedTheme ? themeTemplates : filtered;
+    const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
+
+    if (currentIndex > 0) {
+      const prevTemplate = currentList[currentIndex - 1];
+      setViewingImage(prevTemplate);
+      setZoomLevel(1); // Reset zoom when changing image
+    }
+  };
+
+  const handleNextImage = () => {
+    if (!viewingImage) return;
+
+    // Get the current list of templates to navigate through
+    const currentList = expandedTheme ? themeTemplates : filtered;
+    const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
+
+    if (currentIndex < currentList.length - 1) {
+      const nextTemplate = currentList[currentIndex + 1];
+      setViewingImage(nextTemplate);
+      setZoomLevel(1); // Reset zoom when changing image
+    }
+  };
+
+  // Get current position in carousel
+  const getCarouselPosition = () => {
+    if (!viewingImage) return { current: 0, total: 0 };
+    const currentList = expandedTheme ? themeTemplates : filtered;
+    const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
+    return { current: currentIndex + 1, total: currentList.length };
+  };
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!viewingImage) return;
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handlePrevImage();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleNextImage();
+      } else if (e.key === "Escape") {
+        setViewingImage(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewingImage, expandedTheme, themeTemplates, filtered]);
+
+  // Reset zoom when dialog closes
+  useEffect(() => {
+    if (!viewingImage) {
+      setZoomLevel(1);
+    }
+  }, [viewingImage]);
 
   const handleGenerate = () => {
     if (!user) return router.push("/sign-up");
@@ -348,15 +436,15 @@ export default function HomePage() {
                   <button
                     aria-label="Close"
                     onClick={() => setSelected(null)}
-                    className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md border hover:bg-muted/50"
+                    className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md border hover:bg-muted/50 z-10"
                   >
                     <X className="h-4 w-4" />
                   </button>
-                  <div className="aspect-square w-full overflow-hidden rounded-md">
+                  <div className="w-full overflow-hidden rounded-md">
                     <img
                       src={selected.publicUrls?.lg || ""}
                       alt={selected.title || "Selected template"}
-                      className="h-full w-full object-cover"
+                      className="w-full h-auto object-contain"
                     />
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
@@ -382,54 +470,137 @@ export default function HomePage() {
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      {filtered.map((item) => (
-                        <Dialog key={item.id}>
-                          <DialogTrigger asChild>
-                            <Card
-                              onClick={() => (expandedTheme ? handleTemplateSelect(item) : handleTemplateClick(item))}
-                              className="cursor-pointer overflow-hidden transition hover:shadow-md"
-                            >
-                              <div className="aspect-square w-full overflow-hidden">
-                                <img
-                                  src={item.publicUrls?.md || ""}
-                                  alt={item.title || "Template"}
-                                  className="h-full w-full object-cover transition hover:scale-105"
-                                />
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        {filtered.map((item) => (
+                          <Card
+                            key={item.id}
+                            onClick={() => {
+                              if (!expandedTheme) {
+                                handleTemplateClick(item);
+                              } else {
+                                handleImageClick(item);
+                              }
+                            }}
+                            className="cursor-pointer overflow-hidden transition hover:shadow-md"
+                          >
+                            <div className="w-full overflow-hidden">
+                              <img
+                                src={item.publicUrls?.md || ""}
+                                alt={item.title || "Template"}
+                                className="w-full h-auto object-contain transition hover:scale-105"
+                              />
+                            </div>
+                            <div className="p-3">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Flame className="h-3.5 w-3.5 text-orange-500" />
+                                <span>{item.usage}</span>
                               </div>
-                              <div className="p-3">
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Flame className="h-3.5 w-3.5 text-orange-500" />
-                                  <span>{item.usage}</span>
-                                </div>
-                                {item.title && <div className="mt-1 text-sm font-medium line-clamp-1">{item.title}</div>}
-                              </div>
-                            </Card>
-                          </DialogTrigger>
-                          {expandedTheme && (
-                            <DialogContent className="max-w-4xl">
-                              <div className="aspect-square w-full overflow-hidden rounded-md">
-                                <img
-                                  src={item.publicUrls?.orig || item.publicUrls?.lg || ""}
-                                  alt={item.title || "Template"}
-                                  className="h-full w-full object-contain"
-                                />
-                              </div>
-                              <div className="mt-4 space-y-2">
-                                {item.title && <h3 className="text-lg font-semibold">{item.title}</h3>}
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Flame className="h-4 w-4 text-orange-500" />
-                                  <span>使用次数: {item.usage}</span>
-                                </div>
-                                <Button onClick={() => handleTemplateSelect(item)} className="w-full">
-                                  选择此模板
+                              {item.title && <div className="mt-1 text-sm font-medium line-clamp-1">{item.title}</div>}
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+
+                      {/* Image viewer dialog */}
+                      {viewingImage && (() => {
+                        const { current, total } = getCarouselPosition();
+                        const isFirst = current === 1;
+                        const isLast = current === total;
+
+                        return (
+                          <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
+                            <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 overflow-hidden bg-black/95 border-none [&>button]:text-white [&>button]:hover:bg-white/20">
+                              {/* Hidden title for accessibility */}
+                              <DialogTitle className="sr-only">
+                                {viewingImage.title || "模板图片查看器"}
+                              </DialogTitle>
+
+                              {/* Zoom controls */}
+                              <div className="absolute top-4 right-14 z-50 flex gap-2">
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  onClick={handleZoomOut}
+                                  disabled={zoomLevel <= 1}
+                                  className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                >
+                                  <ZoomOut className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  onClick={handleResetZoom}
+                                  disabled={zoomLevel === 1}
+                                  className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs border-white/20 focus:outline-none focus-visible:ring-0"
+                                >
+                                  1:1
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  onClick={handleZoomIn}
+                                  disabled={zoomLevel >= 3}
+                                  className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                >
+                                  <ZoomIn className="h-4 w-4" />
                                 </Button>
                               </div>
+
+                              {/* Left arrow */}
+                              {!isFirst && (
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  onClick={handlePrevImage}
+                                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                >
+                                  <ChevronLeft className="h-6 w-6" />
+                                </Button>
+                              )}
+
+                              {/* Right arrow */}
+                              {!isLast && (
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  onClick={handleNextImage}
+                                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                >
+                                  <ChevronRight className="h-6 w-6" />
+                                </Button>
+                              )}
+
+                              {/* Image counter */}
+                              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full bg-black/60 text-white text-sm">
+                                {current} / {total}
+                              </div>
+
+                              {/* Image container with scroll */}
+                              <div
+                                ref={imageContainerRef}
+                                className="overflow-auto flex items-center justify-center"
+                                style={{
+                                  maxWidth: "95vw",
+                                  maxHeight: "95vh"
+                                }}
+                              >
+                                <img
+                                  src={viewingImage.publicUrls?.orig || viewingImage.publicUrls?.lg || ""}
+                                  alt={viewingImage.title || "Template"}
+                                  className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-transform duration-200 cursor-pointer"
+                                  style={{
+                                    transform: `scale(${zoomLevel})`,
+                                    transformOrigin: "center center"
+                                  }}
+                                  onClick={() => handleTemplateSelect(viewingImage)}
+                                />
+                              </div>
                             </DialogContent>
-                          )}
-                        </Dialog>
-                      ))}
-                    </div>
+                          </Dialog>
+                        );
+                      })()}
+                    </>
                   )}
                 </>
               )}
