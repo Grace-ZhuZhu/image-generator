@@ -18,6 +18,7 @@ export const I18N = {
       fantasy: "Fantasy \ud83e\udd84",
       fashion: "Fashion \ud83d\udc57",
       art: "Art \ud83c\udfa8",
+      studio: "Studio \ud83d\udcf8",
     } as Record<string, string>,
     ui: {
       current: "Current Result",
@@ -57,6 +58,7 @@ export const I18N = {
       fantasy: "奇幻 \ud83e\udd84",
       fashion: "时尚 \ud83d\udc57",
       art: "艺术 \ud83c\udfa8",
+      studio: "工作室 \ud83d\udcf8",
     } as Record<string, string>,
     ui: {
       current: "当前生成结果",

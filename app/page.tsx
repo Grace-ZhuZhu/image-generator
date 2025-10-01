@@ -24,6 +24,7 @@ const THEMES = [
   { key: "fantasy", label: "奇幻 🦄" },
   { key: "fashion", label: "时尚 👗" },
   { key: "art", label: "艺术 🎨" },
+  { key: "studio", label: "工作室 📸" },
 ] as const;
 
 
