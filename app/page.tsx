@@ -12,11 +12,10 @@ import { Card } from "@/components/ui/card";
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Share2, Zap, Flame, RefreshCw, Download, X, Plus } from "lucide-react";
+import { Share2, Zap, Flame, RefreshCw, Download, X, Plus, Loader2 } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-
-
-type RefItem = { id: string; emoji: string; title: string; usage: number; theme: string };
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import type { Template } from "@/types/templates";
 
 const THEMES = [
   { key: "all", label: "全部" },
@@ -27,17 +26,7 @@ const THEMES = [
   { key: "art", label: "艺术 🎨" },
 ] as const;
 
-const MOCK_ITEMS: RefItem[] = [
-  { id: "x1", emoji: "🎅", title: "圣诞狗狗", usage: 999, theme: "holiday" },
-  { id: "x2", emoji: "👮", title: "警察猫咪", usage: 888, theme: "career" },
-  { id: "x3", emoji: "🦸", title: "超级英雄", usage: 777, theme: "fantasy" },
-  { id: "x4", emoji: "👗", title: "时尚猫", usage: 666, theme: "fashion" },
-  { id: "x5", emoji: "🎨", title: "油画风", usage: 555, theme: "art" },
-  { id: "x6", emoji: "🎃", title: "万圣节猫", usage: 444, theme: "holiday" },
-  { id: "x7", emoji: "🍔", title: "厨师狗", usage: 333, theme: "career" },
-  { id: "x8", emoji: "🏰", title: "公主猫", usage: 222, theme: "fantasy" },
-  { id: "x9", emoji: "💎", title: "奢华风", usage: 111, theme: "fashion" },
-];
+
 
 // i18n moved to lib/i18n
 
@@ -70,9 +59,10 @@ export default function HomePage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [theme, setTheme] = useState<(typeof THEMES)[number]["key"]>("all");
-  const [selected, setSelected] = useState<RefItem | null>(null);
+  const [selected, setSelected] = useState<Template | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [quality, setQuality] = useState<"normal" | "2k" | "4k">("normal");
+
   // Pet & Breed selections (for {{pet_by_breed}})
   const [pet, setPet] = useState<string>("cat");
   const [breed, setBreed] = useState<string>("");
@@ -84,6 +74,12 @@ export default function HomePage() {
 
   const { L } = useI18n();
 
+  // Templates data from API
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
+  const [themeTemplates, setThemeTemplates] = useState<Template[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [loadingThemeTemplates, setLoadingThemeTemplates] = useState(false);
 
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,11 +91,52 @@ export default function HomePage() {
     };
   }, [files]);
 
+  // Fetch representative templates on mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        setLoadingTemplates(true);
+        const res = await fetch("/api/templates?mode=representatives");
+        if (!res.ok) throw new Error("Failed to fetch templates");
+        const data = await res.json();
+        setTemplates(data.items || []);
+      } catch (e: any) {
+        console.error("Failed to load templates:", e);
+        toast({ title: "加载失败", description: "无法加载模板图片" });
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    fetchTemplates();
+  }, [toast]);
 
-  const filtered = useMemo(
-    () => (theme === "all" ? MOCK_ITEMS : MOCK_ITEMS.filter((i) => i.theme === theme)),
-    [theme]
-  );
+  // Fetch all templates for a specific theme when expanded
+  useEffect(() => {
+    if (!expandedTheme) {
+      setThemeTemplates([]);
+      return;
+    }
+    const fetchThemeTemplates = async () => {
+      try {
+        setLoadingThemeTemplates(true);
+        const res = await fetch(`/api/templates?mode=by-theme&theme=${expandedTheme}`);
+        if (!res.ok) throw new Error("Failed to fetch theme templates");
+        const data = await res.json();
+        setThemeTemplates(data.items || []);
+      } catch (e: any) {
+        console.error("Failed to load theme templates:", e);
+        toast({ title: "加载失败", description: "无法加载主题图片" });
+      } finally {
+        setLoadingThemeTemplates(false);
+      }
+    };
+    fetchThemeTemplates();
+  }, [expandedTheme, toast]);
+
+  const filtered = useMemo(() => {
+    if (expandedTheme) return themeTemplates;
+    return theme === "all" ? templates : templates.filter((t) => t.theme === theme);
+  }, [theme, templates, expandedTheme, themeTemplates]);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
@@ -110,6 +147,22 @@ export default function HomePage() {
 
   const removeFileAt = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleTemplateClick = async (template: Template) => {
+    // First level: expand theme to show all templates
+    setExpandedTheme(template.theme || "");
+  };
+
+  const handleTemplateSelect = async (template: Template) => {
+    setSelected(template);
+    setExpandedTheme(null); // Close expanded view
+    // Increment usage count
+    try {
+      await fetch(`/api/templates/${template.id}/increment-usage`, { method: "POST" });
+    } catch (e) {
+      console.error("Failed to increment usage:", e);
+    }
   };
 
   const handleGenerate = () => {
@@ -123,6 +176,9 @@ export default function HomePage() {
       return;
     }
     setIsLoading(true);
+    // TODO: Implement actual generation with petByBreed
+    const finalPrompt = renderTemplateWithPetByBreed(selected.prompt, petByBreed);
+    console.log("Generating with prompt:", finalPrompt);
     setTimeout(() => setIsLoading(false), 1500);
   };
 
@@ -283,7 +339,11 @@ export default function HomePage() {
             </div>
 
             <div className="mt-4">
-              {selected ? (
+              {loadingTemplates ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : selected ? (
                 <Card className="relative p-6">
                   <button
                     aria-label="Close"
@@ -292,32 +352,86 @@ export default function HomePage() {
                   >
                     <X className="h-4 w-4" />
                   </button>
-                  <div className="aspect-square w-full flex items-center justify-center text-9xl">
-                    {selected.emoji}
+                  <div className="aspect-square w-full overflow-hidden rounded-md">
+                    <img
+                      src={selected.publicUrls?.lg || ""}
+                      alt={selected.title || "Selected template"}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                     <Flame className="h-3.5 w-3.5 text-orange-500" />
                     <span>🔥{selected.usage}</span>
                   </div>
+                  {selected.title && <div className="mt-2 text-sm font-medium">{selected.title}</div>}
                 </Card>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  {filtered.map((item) => (
-                    <Card
-                      key={item.id}
-                      onClick={() => setSelected(item)}
-                      className="cursor-pointer p-4 transition hover:shadow-md"
-                    >
-                      <div className="text-4xl">{item.emoji}</div>
-                      <div className="mt-3 flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Flame className="h-3.5 w-3.5 text-orange-500" />
-                          <span>🔥{item.usage}</span>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+                <>
+                  {expandedTheme && (
+                    <div className="mb-4 flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setExpandedTheme(null)}>
+                        ← 返回
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {THEMES.find((t) => t.key === expandedTheme)?.label || expandedTheme}
+                      </span>
+                    </div>
+                  )}
+                  {loadingThemeTemplates ? (
+                    <div className="flex items-center justify-center py-20">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                      {filtered.map((item) => (
+                        <Dialog key={item.id}>
+                          <DialogTrigger asChild>
+                            <Card
+                              onClick={() => (expandedTheme ? handleTemplateSelect(item) : handleTemplateClick(item))}
+                              className="cursor-pointer overflow-hidden transition hover:shadow-md"
+                            >
+                              <div className="aspect-square w-full overflow-hidden">
+                                <img
+                                  src={item.publicUrls?.md || ""}
+                                  alt={item.title || "Template"}
+                                  className="h-full w-full object-cover transition hover:scale-105"
+                                />
+                              </div>
+                              <div className="p-3">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Flame className="h-3.5 w-3.5 text-orange-500" />
+                                  <span>{item.usage}</span>
+                                </div>
+                                {item.title && <div className="mt-1 text-sm font-medium line-clamp-1">{item.title}</div>}
+                              </div>
+                            </Card>
+                          </DialogTrigger>
+                          {expandedTheme && (
+                            <DialogContent className="max-w-4xl">
+                              <div className="aspect-square w-full overflow-hidden rounded-md">
+                                <img
+                                  src={item.publicUrls?.orig || item.publicUrls?.lg || ""}
+                                  alt={item.title || "Template"}
+                                  className="h-full w-full object-contain"
+                                />
+                              </div>
+                              <div className="mt-4 space-y-2">
+                                {item.title && <h3 className="text-lg font-semibold">{item.title}</h3>}
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Flame className="h-4 w-4 text-orange-500" />
+                                  <span>使用次数: {item.usage}</span>
+                                </div>
+                                <Button onClick={() => handleTemplateSelect(item)} className="w-full">
+                                  选择此模板
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          )}
+                        </Dialog>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
