@@ -81,15 +81,49 @@ export async function POST(req: Request) {
 
     const items = await Promise.all(files.map((f) => processOne(f)));
 
-    // Insert all rows in one call
+    // Step 1: Create or find the prompt record
+    // Check if a prompt with the same prompt+theme combination already exists
+    // Note: title is NOT stored in prompts table - it's stored per template
+    let promptId: string;
+
+    const { data: existingPrompt, error: findError } = await svc
+      .from("prompts")
+      .select("id")
+      .eq("prompt", prompt)
+      .eq("theme", theme || null)
+      .maybeSingle();
+
+    if (findError) throw findError;
+
+    if (existingPrompt) {
+      // Use existing prompt
+      promptId = existingPrompt.id;
+    } else {
+      // Create new prompt (without title - title is per-template)
+      const { data: newPrompt, error: insertError } = await svc
+        .from("prompts")
+        .insert({
+          prompt,
+          theme,
+          created_by: null,
+        })
+        .select("id")
+        .single();
+
+      if (insertError) throw insertError;
+      promptId = newPrompt.id;
+    }
+
+    // Step 2: Insert template records with reference to the prompt
+    // title is stored in templates table as it's image-specific (for alt text)
     const rows = items.map((it) => ({
       id: it.id,
-      title,
-      theme,
-      prompt,
+      prompt_id: promptId,
+      title,  // title is stored per template, not per prompt
       images: it.images,
       created_by: null,
     }));
+
     const { error } = await svc.from("templates").insert(rows);
     if (error) throw error;
 
@@ -100,6 +134,7 @@ export async function POST(req: Request) {
         prompt,
         title,
         theme,
+        promptId,
         items: items.map(({ id, images }) => ({
           id,
           images,

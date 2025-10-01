@@ -10,14 +10,35 @@
 
 ## 数据库结构
 
-### templates 表
+### 规范化架构（2025-01-30 更新）
+
+系统采用规范化的数据库设计，将提示词和模板图片分离存储：
+
+#### prompts 表
+
+存储唯一的 AI 生成提示词及其元数据：
+
+```sql
+CREATE TABLE public.prompts (
+    id uuid PRIMARY KEY,
+    prompt text NOT NULL,          -- AI 生成提示词（支持 {{pet_by_breed}} 占位符）
+    theme text,                    -- 主题分类（如 holiday, career, fantasy 等）
+    created_by uuid,               -- 创建者用户 ID
+    created_at timestamptz,        -- 创建时间
+    updated_at timestamptz,        -- 更新时间
+    UNIQUE(prompt, theme)          -- 确保 prompt+theme 组合唯一
+);
+```
+
+#### templates 表
+
+存储模板图片及使用统计，通过外键引用 prompts：
 
 ```sql
 CREATE TABLE public.templates (
     id uuid PRIMARY KEY,
-    title text,                    -- 模板标题（可选）
-    theme text,                    -- 主题分类（如 holiday, career, fantasy 等）
-    prompt text NOT NULL,          -- AI 生成提示词（支持 {{pet_by_breed}} 占位符）
+    prompt_id uuid NOT NULL REFERENCES prompts(id),  -- 外键引用 prompts 表
+    title text,                    -- 图片标题（用于 alt 文本，图片级别属性）
     images jsonb NOT NULL,         -- 图片路径 JSON: {sm, md, lg, orig}
     usage integer DEFAULT 0,       -- 使用次数（点击计数）
     created_by uuid,               -- 创建者用户 ID
@@ -25,6 +46,16 @@ CREATE TABLE public.templates (
     updated_at timestamptz         -- 更新时间
 );
 ```
+
+**字段说明**：
+- `prompts.theme`: prompt 级别的属性，多张图片共享同一主题
+- `templates.title`: 图片级别的属性，用于 `<img>` 标签的 `alt` 文本，每张图片可以有不同的 title
+
+**设计优势：**
+- ✅ 消除数据冗余：相同的 prompt 只存储一次
+- ✅ 数据一致性：修改 prompt 只需更新一处
+- ✅ 存储优化：大幅减少数据库存储空间
+- ✅ 逻辑清晰：一个 prompt 可以有多个 template 图片
 
 ### images 字段结构
 

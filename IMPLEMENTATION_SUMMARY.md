@@ -4,19 +4,46 @@
 
 ### 1. 数据库层 ✅
 
-#### 创建 templates 表
-- **文件**: `supabase/migrations/20250120000000_create_templates_table.sql`
+#### 规范化架构重构（2025-01-30）
+
+系统已重构为规范化的两表结构，消除数据冗余：
+
+##### prompts 表
+- **文件**: `supabase/migrations/20250130000000_create_prompts_table.sql`
 - **字段**:
   - `id`: UUID 主键
-  - `title`: 模板标题（可选）
-  - `theme`: 主题分类
   - `prompt`: AI 提示词（支持 {{pet_by_breed}} 占位符）
+  - `theme`: 主题分类（prompt 级别属性）
+  - `created_by`: 创建者
+  - `created_at`, `updated_at`: 时间戳
+- **约束**: UNIQUE(prompt, theme) - 确保唯一性
+- **索引**: theme, created_at
+- **RLS**: 公开读取，service_role 可管理
+
+##### templates 表
+- **文件**: `supabase/migrations/20250120000000_create_templates_table.sql`（原始）
+- **重构文件**:
+  - `20250130000001_migrate_templates_to_prompts.sql`（数据迁移）
+  - `20250130000002_cleanup_templates_table.sql`（清理旧字段）
+- **字段**:
+  - `id`: UUID 主键
+  - `prompt_id`: 外键引用 prompts(id)
+  - `title`: 图片标题（图片级别属性，用于 alt 文本）
   - `images`: JSONB 存储多尺寸图片路径
   - `usage`: 使用计数
   - `created_by`: 创建者
   - `created_at`, `updated_at`: 时间戳
-- **索引**: theme, usage, created_at, theme+usage 组合索引
+- **索引**: prompt_id, usage, prompt_id+usage 组合索引
 - **RLS**: 公开读取，service_role 可管理
+
+**字段分配说明**：
+- `theme` 在 `prompts` 表：因为主题是 prompt 级别的属性，多张图片共享同一主题
+- `title` 在 `templates` 表：因为 title 是图片级别的属性，用于 `<img>` 标签的 `alt` 文本
+
+**重构优势**：
+- ✅ 消除冗余：多张图片共享同一 prompt 时，prompt 只存储一次
+- ✅ 数据一致性：修改 prompt 只需更新 prompts 表
+- ✅ 存储优化：显著减少数据库存储空间
 
 ### 2. API 层 ✅
 

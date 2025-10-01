@@ -23,18 +23,43 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "theme parameter required for by-theme mode" }, { status: 400 });
       }
 
+      // JOIN with prompts table to get prompt details
       const { data, error } = await supabase
         .from("templates")
-        .select("id, title, theme, prompt, images, usage, created_at")
-        .eq("theme", theme)
+        .select(`
+          id,
+          prompt_id,
+          title,
+          images,
+          usage,
+          created_at,
+          prompt:prompts (
+            id,
+            prompt,
+            theme,
+            created_by,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq("prompts.theme", theme)
         .order("usage", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Add public URLs
-      const items = data.map((item) => ({
-        ...item,
+      // Transform data to match TemplateWithPrompt interface
+      const items = data.map((item: any) => ({
+        id: item.id,
+        prompt_id: item.prompt_id,
+        title: item.title,  // title is from templates table
+        images: item.images,
+        usage: item.usage,
+        created_at: item.created_at,
+        prompt: item.prompt,
+        // Convenience fields for backward compatibility
+        theme: item.prompt?.theme || null,
+        promptText: item.prompt?.prompt || "",
         publicUrls: {
           sm: supabase.storage.from("templates").getPublicUrl(item.images.sm).data.publicUrl,
           md: supabase.storage.from("templates").getPublicUrl(item.images.md).data.publicUrl,
@@ -47,23 +72,38 @@ export async function GET(req: Request) {
     }
 
     // Default mode: "representatives" - get one image per theme (highest usage)
-    // First, get all unique themes
-    const { data: allTemplates, error: allError } = await supabase
-      .from("templates")
+    // First, get all unique themes from prompts table
+    const { data: allPrompts, error: allError } = await supabase
+      .from("prompts")
       .select("theme")
       .not("theme", "is", null);
 
     if (allError) throw allError;
 
-    const themes = [...new Set(allTemplates.map((t) => t.theme))];
+    const themes = [...new Set(allPrompts.map((p) => p.theme))];
 
     // For each theme, get the template with highest usage
     const representatives = await Promise.all(
       themes.map(async (themeKey) => {
         const { data, error } = await supabase
           .from("templates")
-          .select("id, title, theme, prompt, images, usage, created_at")
-          .eq("theme", themeKey)
+          .select(`
+            id,
+            prompt_id,
+            title,
+            images,
+            usage,
+            created_at,
+            prompt:prompts (
+              id,
+              prompt,
+              theme,
+              created_by,
+              created_at,
+              updated_at
+            )
+          `)
+          .eq("prompts.theme", themeKey)
           .order("usage", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(1)
@@ -72,7 +112,16 @@ export async function GET(req: Request) {
         if (error || !data) return null;
 
         return {
-          ...data,
+          id: data.id,
+          prompt_id: data.prompt_id,
+          title: data.title,  // title is from templates table
+          images: data.images,
+          usage: data.usage,
+          created_at: data.created_at,
+          prompt: data.prompt,
+          // Convenience fields for backward compatibility
+          theme: (data.prompt as any)?.theme || null,
+          promptText: (data.prompt as any)?.prompt || "",
           publicUrls: {
             sm: supabase.storage.from("templates").getPublicUrl(data.images.sm).data.publicUrl,
             md: supabase.storage.from("templates").getPublicUrl(data.images.md).data.publicUrl,
