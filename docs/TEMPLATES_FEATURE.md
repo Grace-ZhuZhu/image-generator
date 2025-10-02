@@ -6,30 +6,204 @@
 
 1. **按主题获取代表图（Representatives by Theme）** - 每个 prompt 显示使用次数最高的一张图片，支持分页（每页 50 张）
 2. **按 Prompt 获取所有图片（All Images by Prompt）** - 点击代表图后展示该 prompt 下的所有图片（不分页，< 50 张）
-3. **图片查看器（Image Viewer）** - 在展开视图中点击图片可在弹窗中查看大图、缩放、切换并选择
+3. **图片查看器（Image Viewer）** - 在展开视图中点击图片可在弹窗中查看大图、缩放、切换
+
+## 更新日志
+
+### [2025-10-02] - Checkbox 选择交互
+
+**新增功能：**
+- ✨ 第一层（代表图页面）添加 checkbox，支持 tooltip 提示
+- ✨ 第二层（Prompt 图片页面）添加 checkbox，与第一层状态同步
+- ✨ 新增 Tooltip 组件（`@radix-ui/react-tooltip`）
+- ✨ 国际化支持：`useStyleAsTemplate` 和 `back` 翻译
+
+**变更：**
+- 🔄 重构模板选择逻辑，使用 checkbox 替代点击选择
+- 🔄 更新返回按钮，添加国际化支持
+- ❌ 移除第三层（图片查看器）的选择功能
+
+**技术细节：**
+- 使用 `prompt_id` 作为状态同步标识
+- 使用 `e.stopPropagation()` 防止事件冒泡
+- 自动选择 usage 最高的图片作为代表图
+
+### [2025-10-02] - 新的三层展示逻辑
+
+**新增功能：**
+- ✨ 添加 "Studio" 主题 tab（支持 case-insensitive 匹配）
+- ✨ 实现三层展示结构（代表图 → Prompt 图片 → 图片查看器）
+- ✨ 添加分页功能（每页 50 张）
+- ✨ 添加返回按钮
+
+**变更：**
+- 🔄 重构 API 端点 `/api/templates`（新增 `by-prompt` 模式）
+- 🔄 重构前端状态管理（使用 `expandedPromptId`）
+- 🔄 优化数据加载逻辑（分页加载、按需加载）
+
+### [2025-01-30] - 规范化数据库架构
+
+- 🔄 将 prompts 和 templates 分离存储
+- 🔄 使用外键关联 `templates.prompt_id -> prompts.id`
+
+### [2025-01-20] - Templates 功能初始版本
+
+- ✨ 实现 templates 数据库表
+- ✨ 实现图片上传和存储
+- ✨ 实现主题代表图展示
+- ✨ 实现图片查看器
+- ✨ 支持 `{{pet_by_breed}}` 占位符
 
 ## 最新更新（2025-10-02）
 
 ### Checkbox 选择交互（最新）
 
-模板选择已重构为使用 checkbox 方式，替代之前的点击选择方式。
+模板选择已重构为使用 checkbox 方式，替代之前的点击选择方式。新的交互方式更加直观，用户可以通过 checkbox 明确地选择/取消选择模板。
 
-- **第一层（代表图）**：
-  - 每张代表图右上角显示 checkbox
-  - 鼠标悬停显示 tooltip："Use this style as template"
-  - 点击 checkbox 选中/取消选中模板
-  - 点击卡片本身进入第二层
+#### 第一层（代表图页面）
 
-- **第二层（Prompt 图片）**：
-  - 返回按钮旁显示 checkbox 和标签："Use this style as template"
-  - Checkbox 状态与第一层同步
-  - 勾选 checkbox 选中该 prompt 的代表图
+**功能：**
+- ✅ 每张代表图卡片右上角显示 checkbox
+- ✅ 鼠标悬停在 checkbox 上显示 tooltip 提示
+  - 英文：`Use this style as template`
+  - 中文：`使用此风格作为模板`
+- ✅ Checkbox 状态与当前选中的模板（`selected` state）同步
+- ✅ 点击 checkbox 选中/取消选中该模板
+- ✅ 点击卡片本身（非 checkbox 区域）进入第二层，展开显示该 prompt 下的所有图片
 
-- **第三层（图片查看器）**：
-  - 移除了"选择此模板"按钮
-  - 只用于查看大图，不再用于选择
+**UI 实现：**
+```tsx
+<TooltipProvider>
+  <Card className="relative">
+    {/* Checkbox in top-right corner */}
+    <div className="absolute top-2 right-2 z-10">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div onClick={(e) => handleCheckboxToggle(item.prompt_id, e)}>
+            <Checkbox checked={selected?.prompt_id === item.prompt_id} />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{L.ui.useStyleAsTemplate}</p>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+    {/* Image and content */}
+  </Card>
+</TooltipProvider>
+```
 
-详见：[Checkbox Selection Feature](./CHECKBOX_SELECTION.md)
+#### 第二层（Prompt 图片页面）
+
+**功能：**
+- ✅ 返回按钮添加国际化支持
+  - 英文：`← Back`
+  - 中文：`← 返回`
+- ✅ 返回按钮旁边显示 checkbox 和标签
+  - 标签文字：`Use this style as template` / `使用此风格作为模板`
+- ✅ Checkbox 状态与第一层同步
+- ✅ 勾选 checkbox 选中该 prompt 的代表图（usage 最高的图片）
+
+**UI 实现：**
+```tsx
+{expandedPromptId && (
+  <div className="mb-4 flex items-center gap-3">
+    <Button onClick={() => setExpandedPromptId(null)}>
+      ← {L.ui.back}
+    </Button>
+    <div className="flex items-center gap-2">
+      <Checkbox
+        checked={selected?.prompt_id === expandedPromptId}
+        onCheckedChange={() => handleCheckboxToggle(expandedPromptId)}
+      />
+      <label>{L.ui.useStyleAsTemplate}</label>
+    </div>
+  </div>
+)}
+```
+
+#### 第三层（图片查看器）
+
+**变更：**
+- ❌ 移除了"选择此模板"按钮
+- ❌ 移除了点击图片选择模板的功能
+- ✅ 只用于查看大图、缩放、切换
+
+**保留功能：**
+- ✅ 全屏查看大图
+- ✅ 缩放功能（1x - 3x）
+- ✅ 左右切换（键盘方向键或按钮）
+- ✅ 显示当前位置（第 X / 总数）
+
+#### 状态同步机制
+
+**关键实现：** 使用 `prompt_id` 作为同步的关键标识，确保第一层和第二层的 checkbox 状态保持一致。
+
+**同步场景：**
+1. **第一层 → 第二层**：在第一层勾选 checkbox → 进入第二层 → 第二层 checkbox 显示为 checked
+2. **第二层 → 第一层**：在第二层勾选 checkbox → 返回第一层 → 第一层对应代表图的 checkbox 显示为 checked
+3. **取消勾选**：在任一层取消勾选 → 另一层的 checkbox 也会同步更新为 unchecked
+
+**核心函数：**
+```typescript
+const handleCheckboxToggle = async (promptId: string, e?: React.MouseEvent) => {
+  // Stop propagation to prevent card click
+  if (e) {
+    e.stopPropagation();
+  }
+
+  // Check if this prompt is already selected
+  const isCurrentlySelected = selected?.prompt_id === promptId;
+
+  if (isCurrentlySelected) {
+    // Deselect
+    setSelected(null);
+  } else {
+    // Select: find the representative image (highest usage) for this prompt
+    let representative: Template | null = null;
+
+    if (expandedPromptId === promptId) {
+      // We're in the expanded view, use promptTemplates
+      representative = promptTemplates.reduce((highest, current) =>
+        (current.usage > highest.usage) ? current : highest
+      );
+    } else {
+      // We're in the representatives view, find it in templates
+      representative = templates.find(t => t.prompt_id === promptId) || null;
+    }
+
+    if (representative) {
+      setSelected(representative);
+      // Increment usage count
+      await fetch(`/api/templates/${representative.id}/increment-usage`, { method: "POST" });
+    }
+  }
+};
+```
+
+**技术亮点：**
+1. **事件冒泡处理**：使用 `e.stopPropagation()` 防止 checkbox 点击触发卡片点击
+2. **代表图选择逻辑**：自动选择 usage 最高的图片作为代表图
+3. **条件渲染**：第一层显示 checkbox，第二层使用不同的 UI 布局
+4. **国际化支持**：所有文本支持英文和中文切换
+
+**新增组件：**
+- `components/ui/tooltip.tsx` - 使用 `@radix-ui/react-tooltip` 实现悬停提示
+
+**新增依赖：**
+```bash
+npm install @radix-ui/react-tooltip
+```
+
+**国际化更新：**
+```typescript
+// lib/i18n.tsx
+ui: {
+  useStyleAsTemplate: "Use this style as template" / "使用此风格作为模板",
+  back: "Back" / "返回",
+  // ... other keys
+}
+```
 
 ### 新的三层展示逻辑
 
@@ -593,9 +767,9 @@ themes: {
 4. 测试 case-insensitive 匹配（数据库中可以是 "Studio", "STUDIO", "studio"）
 
 ### 场景 3：展开 Prompt
-1. 点击任一代表图
+1. 点击任一代表图（非 checkbox 区域）
 2. 验证显示该 prompt 下的所有图片
-3. 验证"返回"按钮出现
+3. 验证"返回"按钮出现（已国际化）
 4. 验证分页控件隐藏
 
 ### 场景 4：查看大图
@@ -603,10 +777,86 @@ themes: {
 2. 验证打开全屏查看器
 3. 测试缩放功能
 4. 测试左右切换
-5. 点击"选择此模板"，验证选中成功
+5. 验证没有"选择此模板"按钮（已移除）
+
+### 场景 5：使用 Checkbox 选择模板（第一层）
+1. 在代表图页面，鼠标悬停在某张图片右上角的 checkbox 上
+2. 验证显示 tooltip："Use this style as template" / "使用此风格作为模板"
+3. 点击 checkbox
+4. 验证 checkbox 变为 checked 状态
+5. 验证该模板被选中（右侧面板显示）
+6. 再次点击 checkbox
+7. 验证 checkbox 变为 unchecked 状态
+8. 验证模板被取消选中
+
+### 场景 6：使用 Checkbox 选择模板（第二层）
+1. 点击某张代表图进入第二层
+2. 验证返回按钮旁边显示 checkbox 和标签
+3. 点击 checkbox
+4. 验证 checkbox 变为 checked 状态
+5. 点击"返回"按钮回到第一层
+6. 验证对应代表图的 checkbox 显示为 checked
+
+### 场景 7：Checkbox 状态同步测试
+1. 在第一层选中某个代表图的 checkbox
+2. 点击该代表图进入第二层
+3. 验证第二层的 checkbox 显示为 checked
+4. 在第二层取消勾选 checkbox
+5. 点击"返回"按钮回到第一层
+6. 验证第一层对应代表图的 checkbox 显示为 unchecked
+
+### 场景 8：Checkbox 不触发卡片点击
+1. 在代表图页面，点击某张图片的 checkbox
+2. 验证只选中/取消选中模板，不进入第二层
+3. 点击卡片的其他区域（非 checkbox）
+4. 验证进入第二层，显示该 prompt 下的所有图片
+
+### 场景 9：国际化测试
+1. 切换到英文环境
+2. 验证 tooltip 显示 "Use this style as template"
+3. 验证返回按钮显示 "← Back"
+4. 切换到中文环境
+5. 验证 tooltip 显示 "使用此风格作为模板"
+6. 验证返回按钮显示 "← 返回"
+
+## 用户体验改进
+
+### Checkbox 选择方式的优势
+
+1. **更直观**
+   - Checkbox 明确表示选择状态，用户一眼就能看出哪个模板被选中
+   - Tooltip 提示帮助用户理解 checkbox 的作用
+
+2. **更灵活**
+   - 点击图片和点击 checkbox 是两个独立的操作，互不干扰
+   - 用户可以先浏览多个 prompt 的图片，再决定选择哪个
+
+3. **更一致**
+   - 第一层和第二层使用相同的选择机制，用户体验一致
+   - 状态同步机制确保两层的 checkbox 状态始终一致
+
+4. **更易用**
+   - 不会因为误点击而选择模板
+   - 可以在任一层轻松选择/取消选择模板
+
+5. **更可靠**
+   - 使用 `prompt_id` 作为同步标识，确保状态一致性
+   - 事件冒泡处理防止误触
+
+### 性能影响
+
+**正面影响：**
+- ✅ 减少了不必要的状态更新（只在 checkbox 点击时更新）
+- ✅ 移除了图片查看器的选择功能，简化了交互逻辑
+- ✅ 使用 `prompt_id` 作为标识符，避免了复杂的对象比较
+
+**中性影响：**
+- ⚪ 添加了 Tooltip 组件，增加了少量 bundle 大小（~5KB）
+- ⚪ 添加了条件渲染逻辑，对性能影响可忽略不计
 
 ## 未来扩展
 
+### 功能扩展
 - [ ] 添加模板搜索功能
 - [ ] 支持更多占位符变量
 - [ ] 模板收藏功能
@@ -616,4 +866,13 @@ themes: {
 - [ ] 无限滚动替代分页
 - [ ] 图片懒加载优化
 - [ ] 骨架屏加载状态
+
+### Checkbox 功能扩展
+- [ ] 支持多选模板（当前只支持单选）
+- [ ] 添加"清除选择"按钮
+- [ ] 添加选中模板的视觉高亮效果（边框高亮）
+- [ ] 支持键盘快捷键选择（如空格键）
+- [ ] 添加选择历史记录
+- [ ] 支持"全选"/"全不选"
+- [ ] 支持按主题批量选择
 

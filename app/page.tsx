@@ -8,8 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
 import { Card } from "@/components/ui/card";
-
-
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Share2, Zap, Flame, RefreshCw, Download, X, Plus, Loader2, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react";
@@ -173,15 +173,42 @@ export default function HomePage() {
     setExpandedPromptId(template.prompt_id);
   };
 
-  const handleTemplateSelect = async (template: Template) => {
-    setSelected(template);
-    setExpandedPromptId(null); // Close expanded view
-    setViewingImage(null); // Close dialog
-    // Increment usage count
-    try {
-      await fetch(`/api/templates/${template.id}/increment-usage`, { method: "POST" });
-    } catch (e) {
-      console.error("Failed to increment usage:", e);
+  // Toggle checkbox selection - select/deselect the representative image of a prompt
+  const handleCheckboxToggle = async (promptId: string, e?: React.MouseEvent) => {
+    // Stop propagation to prevent card click
+    if (e) {
+      e.stopPropagation();
+    }
+
+    // Check if this prompt is already selected
+    const isCurrentlySelected = selected?.prompt_id === promptId;
+
+    if (isCurrentlySelected) {
+      // Deselect
+      setSelected(null);
+    } else {
+      // Select: find the representative image (highest usage) for this prompt
+      let representative: Template | null = null;
+
+      if (expandedPromptId === promptId) {
+        // We're in the expanded view, use promptTemplates
+        representative = promptTemplates.reduce((highest, current) =>
+          (current.usage > highest.usage) ? current : highest
+        );
+      } else {
+        // We're in the representatives view, find it in templates
+        representative = templates.find(t => t.prompt_id === promptId) || null;
+      }
+
+      if (representative) {
+        setSelected(representative);
+        // Increment usage count
+        try {
+          await fetch(`/api/templates/${representative.id}/increment-usage`, { method: "POST" });
+        } catch (e) {
+          console.error("Failed to increment usage:", e);
+        }
+      }
     }
   };
 
@@ -449,13 +476,23 @@ export default function HomePage() {
               ) : (
                 <>
                   {expandedPromptId && (
-                    <div className="mb-4 flex items-center gap-2">
+                    <div className="mb-4 flex items-center gap-3">
                       <Button variant="outline" size="sm" onClick={() => setExpandedPromptId(null)}>
-                        ← 返回
+                        ← {L.ui.back}
                       </Button>
-                      <span className="text-sm text-muted-foreground">
-                        查看提示词下的所有图片
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="prompt-checkbox"
+                          checked={selected?.prompt_id === expandedPromptId}
+                          onCheckedChange={() => handleCheckboxToggle(expandedPromptId)}
+                        />
+                        <label
+                          htmlFor="prompt-checkbox"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
+                          {L.ui.useStyleAsTemplate}
+                        </label>
+                      </div>
                     </div>
                   )}
                   {loadingPromptTemplates ? (
@@ -464,36 +501,61 @@ export default function HomePage() {
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {displayedTemplates.map((item) => (
-                          <Card
-                            key={item.id}
-                            onClick={() => {
-                              if (!expandedPromptId) {
-                                handleTemplateClick(item);
-                              } else {
-                                handleImageClick(item);
-                              }
-                            }}
-                            className="cursor-pointer overflow-hidden transition hover:shadow-md"
-                          >
-                            <div className="w-full overflow-hidden">
-                              <img
-                                src={item.publicUrls?.md || ""}
-                                alt={item.title || "Template"}
-                                className="w-full h-auto object-contain transition hover:scale-105"
-                              />
-                            </div>
-                            <div className="p-3">
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Flame className="h-3.5 w-3.5 text-orange-500" />
-                                <span>{item.usage}</span>
+                      <TooltipProvider>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          {displayedTemplates.map((item) => (
+                            <Card
+                              key={item.id}
+                              onClick={() => {
+                                if (!expandedPromptId) {
+                                  handleTemplateClick(item);
+                                } else {
+                                  handleImageClick(item);
+                                }
+                              }}
+                              className="cursor-pointer overflow-hidden transition hover:shadow-md relative"
+                            >
+                              {/* Checkbox - only show in first layer (representatives view) */}
+                              {!expandedPromptId && (
+                                <div className="absolute top-2 right-2 z-10">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        onClick={(e) => handleCheckboxToggle(item.prompt_id, e)}
+                                        className="bg-white/90 dark:bg-gray-800/90 rounded p-1 shadow-sm hover:bg-white dark:hover:bg-gray-800 transition"
+                                      >
+                                        <Checkbox
+                                          checked={selected?.prompt_id === item.prompt_id}
+                                          onCheckedChange={() => {}}
+                                          className="pointer-events-none"
+                                        />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{L.ui.useStyleAsTemplate}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              )}
+
+                              <div className="w-full overflow-hidden">
+                                <img
+                                  src={item.publicUrls?.md || ""}
+                                  alt={item.title || "Template"}
+                                  className="w-full h-auto object-contain transition hover:scale-105"
+                                />
                               </div>
-                              {item.title && <div className="mt-1 text-sm font-medium line-clamp-1">{item.title}</div>}
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
+                              <div className="p-3">
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Flame className="h-3.5 w-3.5 text-orange-500" />
+                                  <span>{item.usage}</span>
+                                </div>
+                                {item.title && <div className="mt-1 text-sm font-medium line-clamp-1">{item.title}</div>}
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      </TooltipProvider>
 
                       {/* Pagination controls - only show when not expanded */}
                       {!expandedPromptId && totalPages > 1 && (
@@ -606,12 +668,11 @@ export default function HomePage() {
                                 <img
                                   src={viewingImage.publicUrls?.orig || viewingImage.publicUrls?.lg || ""}
                                   alt={viewingImage.title || "Template"}
-                                  className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-transform duration-200 cursor-pointer"
+                                  className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-transform duration-200"
                                   style={{
                                     transform: `scale(${zoomLevel})`,
                                     transformOrigin: "center center"
                                   }}
-                                  onClick={() => handleTemplateSelect(viewingImage)}
                                 />
                               </div>
                             </DialogContent>

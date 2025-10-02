@@ -35,6 +35,8 @@ export const I18N = {
       toastSelectDesc: "Click a card on the left to choose a style",
       toastUploadTitle: "Please upload pet photos",
       toastUploadDesc: "Up to 3 files, JPEG/PNG/WebP",
+      useStyleAsTemplate: "Use this style as template",
+      back: "Back",
     },
     quality: {
       normal: "Standard (100\ud83d\udc8e)",
@@ -75,6 +77,8 @@ export const I18N = {
       toastSelectDesc: "点击左侧卡片选择一个风格",
       toastUploadTitle: "请上传宠物照片",
       toastUploadDesc: "支持最多3张，JPEG/PNG/WebP",
+      useStyleAsTemplate: "使用此风格作为模板",
+      back: "返回",
     },
     quality: {
       normal: "普通(100\ud83d\udc8e)",
