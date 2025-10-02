@@ -10,6 +10,27 @@
 
 ## 最新更新（2025-10-02）
 
+### Checkbox 选择交互（最新）
+
+模板选择已重构为使用 checkbox 方式，替代之前的点击选择方式。
+
+- **第一层（代表图）**：
+  - 每张代表图右上角显示 checkbox
+  - 鼠标悬停显示 tooltip："Use this style as template"
+  - 点击 checkbox 选中/取消选中模板
+  - 点击卡片本身进入第二层
+
+- **第二层（Prompt 图片）**：
+  - 返回按钮旁显示 checkbox 和标签："Use this style as template"
+  - Checkbox 状态与第一层同步
+  - 勾选 checkbox 选中该 prompt 的代表图
+
+- **第三层（图片查看器）**：
+  - 移除了"选择此模板"按钮
+  - 只用于查看大图，不再用于选择
+
+详见：[Checkbox Selection Feature](./CHECKBOX_SELECTION.md)
+
 ### 新的三层展示逻辑
 
 **结构：** all → by theme → by prompt
@@ -23,14 +44,13 @@
 - **第二层（Prompt 图片）**：
   - 点击任一代表图，展开显示该 prompt 下的所有图片
   - 不需要分页（每个 prompt < 50 张）
-  - 显示"返回"按钮
+  - 显示"返回"按钮（已国际化）
 
 - **第三层（图片查看器）**：
   - 全屏查看大图
   - 支持缩放（1x - 3x）
   - 支持左右切换（键盘方向键或按钮）
   - 显示当前位置（第 X / 总数）
-  - 点击"选择此模板"按钮选中
 
 ## 数据库结构
 
