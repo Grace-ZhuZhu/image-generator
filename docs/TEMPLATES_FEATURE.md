@@ -10,23 +10,51 @@
 
 ## 更新日志
 
-### [2025-10-02] - Checkbox 选择交互
+### [2025-10-02] - Header 样式修复
+
+**修复问题：**
+- 🐛 修复图片缩略图宽度不足问题
+  - 添加 `flex-shrink-0` 防止在 flex 布局中收缩
+  - 将容器设置为固定尺寸 `w-10 h-10`（40px × 40px）
+  - 图片使用 `w-full h-full` 填充容器
+- 🐛 修复分隔线高度不匹配问题
+  - 将分隔线高度从固定的 `h-6`（24px）改为 `self-stretch`
+  - 分隔线现在自动适应父容器高度，与悬浮框高度保持一致
+
+**技术细节：**
+- 图片容器：`relative flex-shrink-0 w-10 h-10`
+- 图片样式：`w-full h-full rounded object-cover border`
+- 分隔线样式：`self-stretch w-px bg-border`
+
+### [2025-10-02] - Checkbox 选择交互 & Header 显示
 
 **新增功能：**
 - ✨ 第一层（代表图页面）添加 checkbox，支持 tooltip 提示
 - ✨ 第二层（Prompt 图片页面）添加 checkbox，与第一层状态同步
 - ✨ 新增 Tooltip 组件（`@radix-ui/react-tooltip`）
-- ✨ 国际化支持：`useStyleAsTemplate` 和 `back` 翻译
+- ✨ **Header 悬浮框显示选中的模板**
+  - 显示模板代表图的小图（sm 尺寸，80px）
+  - 显示"Template Style" / "模板风格"文字说明
+  - 显示模板标题（如果有，支持 hover 显示完整标题）
+  - 添加"X"取消按钮，可快速取消选中
+  - 使用竖线分隔符（|）与其他区域分隔
+  - 实时同步选中状态
+  - 选中时显示，取消选中时隐藏
+- ✨ 国际化支持：`useStyleAsTemplate`、`back` 和 `templateStyle` 翻译
 
 **变更：**
 - 🔄 重构模板选择逻辑，使用 checkbox 替代点击选择
 - 🔄 更新返回按钮，添加国际化支持
+- 🔄 优化模板显示区域样式，增加文字显示空间
 - ❌ 移除第三层（图片查看器）的选择功能
 
 **技术细节：**
 - 使用 `prompt_id` 作为状态同步标识
 - 使用 `e.stopPropagation()` 防止事件冒泡
 - 自动选择 usage 最高的图片作为代表图
+- Header 悬浮框实时显示选中状态
+- 使用条件渲染（`{selected && ...}`）优化性能
+- 取消按钮与上传照片删除按钮样式保持一致
 
 ### [2025-10-02] - 新的三层展示逻辑
 
@@ -186,6 +214,91 @@ const handleCheckboxToggle = async (promptId: string, e?: React.MouseEvent) => {
 2. **代表图选择逻辑**：自动选择 usage 最高的图片作为代表图
 3. **条件渲染**：第一层显示 checkbox，第二层使用不同的 UI 布局
 4. **国际化支持**：所有文本支持英文和中文切换
+5. **Header 实时显示**：选中模板后立即在 header 悬浮框中显示
+
+#### Header 悬浮框显示选中模板
+
+当用户选中一个模板后，header 悬浮框会实时显示选中的模板信息。
+
+**显示内容：**
+- 📷 模板代表图的小图（使用 `sm` 尺寸，80px）
+- 📝 文字说明："Template Style" / "模板风格"
+- 🏷️ 模板标题（如果有，hover 显示完整标题）
+- ❌ 取消按钮（X 图标，右上角）
+- ｜ 竖线分隔符（与其他区域分隔）
+
+**UI 实现：**
+```tsx
+{selected && (
+  <>
+    <div className="flex items-center gap-2">
+      <div className="relative flex-shrink-0 w-10 h-10">
+        <img
+          src={selected.publicUrls?.sm || selected.publicUrls?.md || ""}
+          alt={selected.title || "Template"}
+          className="w-full h-full rounded object-cover border"
+        />
+        <button
+          type="button"
+          aria-label="Remove template"
+          onClick={() => setSelected(null)}
+          className="absolute -top-1 -right-1 inline-flex h-4 w-4 items-center justify-center rounded-full border bg-background text-muted-foreground hover:bg-muted"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      <div className="flex flex-col min-w-[120px] max-w-[200px]">
+        <span className="text-xs text-muted-foreground">{L.ui.templateStyle}</span>
+        {selected.title && (
+          <span className="text-sm font-medium truncate" title={selected.title}>
+            {selected.title}
+          </span>
+        )}
+      </div>
+    </div>
+    <div className="self-stretch w-px bg-border" />
+  </>
+)}
+```
+
+**样式特点：**
+- **图片容器**：固定尺寸，防止收缩
+  - 容器尺寸：40px × 40px（`w-10 h-10`）
+  - 防止收缩：`flex-shrink-0`（确保在 flex 布局中保持宽度）
+  - 图片样式：`w-full h-full`（填充整个容器）
+  - 圆角：`rounded`
+  - 边框：`border`
+  - 裁剪方式：`object-cover`（保持比例，填充容器）
+- **取消按钮**：与上传照片删除按钮样式一致
+  - 位置：图片右上角（`absolute -top-1 -right-1`）
+  - 尺寸：4x4（16px）
+  - 图标：X（3x3，12px）
+  - 样式：圆形、边框、背景色、hover 效果
+- **文字区域**：增加显示空间
+  - 最小宽度：120px（`min-w-[120px]`）
+  - 最大宽度：200px（`max-w-[200px]`）
+  - 标题截断：使用 `truncate` 而非 `line-clamp-1`
+  - Hover 提示：使用 `title` 属性显示完整标题
+- **分隔符**：竖线样式，自适应高度
+  - 高度：自适应父容器（`self-stretch`）
+  - 宽度：1px（`w-px`）
+  - 颜色：边框色（`bg-border`）
+  - 说明：使用 `self-stretch` 替代固定高度 `h-6`，确保分隔线与悬浮框高度一致
+- **布局**：取消外层 border 和 background
+  - 使用 Fragment（`<>...</>`）包裹
+  - 与其他区域保持一致的视觉风格
+
+**位置：**
+- 在 header 悬浮框的左侧
+- 在上传照片区域之前
+- 与其他控件（Pet/Breed 选择、质量选择、生成按钮）在同一行
+
+**交互：**
+- 选中模板时自动显示
+- 点击 X 按钮取消选中
+- 取消选中时自动隐藏
+- 实时同步选中状态
+- Hover 标题显示完整文本
 
 **新增组件：**
 - `components/ui/tooltip.tsx` - 使用 `@radix-ui/react-tooltip` 实现悬停提示
@@ -201,6 +314,7 @@ npm install @radix-ui/react-tooltip
 ui: {
   useStyleAsTemplate: "Use this style as template" / "使用此风格作为模板",
   back: "Back" / "返回",
+  templateStyle: "Template Style" / "模板风格",
   // ... other keys
 }
 ```
@@ -815,9 +929,57 @@ themes: {
 1. 切换到英文环境
 2. 验证 tooltip 显示 "Use this style as template"
 3. 验证返回按钮显示 "← Back"
-4. 切换到中文环境
-5. 验证 tooltip 显示 "使用此风格作为模板"
-6. 验证返回按钮显示 "← 返回"
+4. 验证 header 显示 "Template Style"
+5. 切换到中文环境
+6. 验证 tooltip 显示 "使用此风格作为模板"
+7. 验证返回按钮显示 "← 返回"
+8. 验证 header 显示 "模板风格"
+
+### 场景 10：Header 悬浮框显示测试
+1. 打开首页，验证 header 悬浮框不显示模板信息
+2. 点击某张代表图的 checkbox 选中模板
+3. 验证 header 悬浮框立即显示选中的模板
+4. 验证显示模板的小图（sm 尺寸）
+5. 验证显示"Template Style" / "模板风格"文字
+6. 验证显示模板标题（如果有）
+7. 验证显示竖线分隔符（|）
+8. 验证图片右上角显示 X 取消按钮
+9. 鼠标 hover 模板标题，验证显示完整标题（如果标题被截断）
+10. 再次点击 checkbox 取消选中
+11. 验证 header 悬浮框隐藏模板信息
+
+### 场景 11：Header 取消按钮测试
+1. 选中某个模板
+2. 验证 header 显示模板信息和 X 按钮
+3. 点击 header 中的 X 按钮
+4. 验证 header 立即隐藏模板信息
+5. 验证页面中对应的 checkbox 变为 unchecked
+6. 如果在第一层，验证代表图的 checkbox 变为 unchecked
+7. 如果在第二层，验证返回按钮旁的 checkbox 变为 unchecked
+
+### 场景 12：Header 显示与状态同步测试
+1. 在第一层选中某个模板
+2. 验证 header 显示该模板信息
+3. 进入第二层
+4. 验证 header 仍然显示该模板信息
+5. 在第二层取消选中
+6. 验证 header 立即隐藏模板信息
+7. 返回第一层
+8. 验证 header 仍然不显示模板信息
+9. 在第一层重新选中模板
+10. 验证 header 显示模板信息
+11. 点击 header 的 X 按钮
+12. 验证 header 隐藏，第一层 checkbox 取消选中
+
+### 场景 13：Header 样式和响应式测试
+1. 选中模板，验证 header 显示
+2. 验证模板区域与上传照片区域使用竖线分隔
+3. 验证取消按钮样式与上传照片删除按钮一致
+4. 验证文字区域有足够的显示空间（120px-200px）
+5. 选择一个标题很长的模板
+6. 验证标题被截断显示
+7. Hover 标题，验证显示完整标题
+8. 调整浏览器窗口大小，测试响应式布局
 
 ## 用户体验改进
 

@@ -319,6 +319,38 @@ export default function HomePage() {
         <div className="container mx-auto max-w-6xl px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 items-center gap-3">
+              {/* Selected template display */}
+              {selected && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-shrink-0 w-10 h-10">
+                      <img
+                        src={selected.publicUrls?.sm || selected.publicUrls?.md || ""}
+                        alt={selected.title || "Template"}
+                        className="w-full h-full rounded object-cover border"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Remove template"
+                        onClick={() => setSelected(null)}
+                        className="absolute -top-1 -right-1 inline-flex h-4 w-4 items-center justify-center rounded-full border bg-background text-muted-foreground hover:bg-muted"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <div className="flex flex-col min-w-[120px] max-w-[200px]">
+                      <span className="text-xs text-muted-foreground">{L.ui.templateStyle}</span>
+                      {selected.title && (
+                        <span className="text-sm font-medium truncate" title={selected.title}>
+                          {selected.title}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="self-stretch w-px bg-border" />
+                </>
+              )}
+
               {files.length > 0 && previews.length > 0 && (
                 <div className="flex items-center gap-2 overflow-x-auto">
                   {previews.map((src, i) => (

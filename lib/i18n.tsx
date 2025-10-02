@@ -37,6 +37,7 @@ export const I18N = {
       toastUploadDesc: "Up to 3 files, JPEG/PNG/WebP",
       useStyleAsTemplate: "Use this style as template",
       back: "Back",
+      templateStyle: "Template Style",
     },
     quality: {
       normal: "Standard (100\ud83d\udc8e)",
@@ -79,6 +80,7 @@ export const I18N = {
       toastUploadDesc: "支持最多3张，JPEG/PNG/WebP",
       useStyleAsTemplate: "使用此风格作为模板",
       back: "返回",
+      templateStyle: "模板风格",
     },
     quality: {
       normal: "普通(100\ud83d\udc8e)",
