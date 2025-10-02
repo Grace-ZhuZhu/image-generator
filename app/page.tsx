@@ -75,12 +75,17 @@ export default function HomePage() {
 
   const { L } = useI18n();
 
-  // Templates data from API
+  // Templates data from API - Three-level structure:
+  // Level 1: Representatives (one per prompt) - paginated
+  // Level 2: By prompt (all images for a prompt) - not paginated
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
-  const [themeTemplates, setThemeTemplates] = useState<Template[]>([]);
+  const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
+  const [promptTemplates, setPromptTemplates] = useState<Template[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
-  const [loadingThemeTemplates, setLoadingThemeTemplates] = useState(false);
+  const [loadingPromptTemplates, setLoadingPromptTemplates] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Image zoom state
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -97,15 +102,18 @@ export default function HomePage() {
     };
   }, [files]);
 
-  // Fetch representative templates on mount
+  // Fetch representative templates (one per prompt) when theme or page changes
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
         setLoadingTemplates(true);
-        const res = await fetch("/api/templates?mode=representatives");
+        const url = `/api/templates?mode=representatives&theme=${theme}&page=${currentPage}&limit=50`;
+        const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to fetch templates");
         const data = await res.json();
         setTemplates(data.items || []);
+        setTotalItems(data.total || 0);
+        setTotalPages(Math.ceil((data.total || 0) / 50));
       } catch (e: any) {
         console.error("Failed to load templates:", e);
         toast({ title: "加载失败", description: "无法加载模板图片" });
@@ -114,35 +122,40 @@ export default function HomePage() {
       }
     };
     fetchTemplates();
-  }, [toast]);
+  }, [theme, currentPage, toast]);
 
-  // Fetch all templates for a specific theme when expanded
+  // Reset to page 1 when theme changes
   useEffect(() => {
-    if (!expandedTheme) {
-      setThemeTemplates([]);
+    setCurrentPage(1);
+    setExpandedPromptId(null);
+  }, [theme]);
+
+  // Fetch all templates for a specific prompt when expanded
+  useEffect(() => {
+    if (!expandedPromptId) {
+      setPromptTemplates([]);
       return;
     }
-    const fetchThemeTemplates = async () => {
+    const fetchPromptTemplates = async () => {
       try {
-        setLoadingThemeTemplates(true);
-        const res = await fetch(`/api/templates?mode=by-theme&theme=${expandedTheme}`);
-        if (!res.ok) throw new Error("Failed to fetch theme templates");
+        setLoadingPromptTemplates(true);
+        const res = await fetch(`/api/templates?mode=by-prompt&prompt_id=${expandedPromptId}`);
+        if (!res.ok) throw new Error("Failed to fetch prompt templates");
         const data = await res.json();
-        setThemeTemplates(data.items || []);
+        setPromptTemplates(data.items || []);
       } catch (e: any) {
-        console.error("Failed to load theme templates:", e);
-        toast({ title: "加载失败", description: "无法加载主题图片" });
+        console.error("Failed to load prompt templates:", e);
+        toast({ title: "加载失败", description: "无法加载提示词图片" });
       } finally {
-        setLoadingThemeTemplates(false);
+        setLoadingPromptTemplates(false);
       }
     };
-    fetchThemeTemplates();
-  }, [expandedTheme, toast]);
+    fetchPromptTemplates();
+  }, [expandedPromptId, toast]);
 
-  const filtered = useMemo(() => {
-    if (expandedTheme) return themeTemplates;
-    return theme === "all" ? templates : templates.filter((t) => t.theme === theme);
-  }, [theme, templates, expandedTheme, themeTemplates]);
+  const displayedTemplates = useMemo(() => {
+    return expandedPromptId ? promptTemplates : templates;
+  }, [expandedPromptId, promptTemplates, templates]);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
@@ -156,13 +169,13 @@ export default function HomePage() {
   };
 
   const handleTemplateClick = async (template: Template) => {
-    // First level: expand theme to show all templates
-    setExpandedTheme(template.theme || "");
+    // Click on representative image: expand to show all images for this prompt
+    setExpandedPromptId(template.prompt_id);
   };
 
   const handleTemplateSelect = async (template: Template) => {
     setSelected(template);
-    setExpandedTheme(null); // Close expanded view
+    setExpandedPromptId(null); // Close expanded view
     setViewingImage(null); // Close dialog
     // Increment usage count
     try {
@@ -195,7 +208,7 @@ export default function HomePage() {
     if (!viewingImage) return;
 
     // Get the current list of templates to navigate through
-    const currentList = expandedTheme ? themeTemplates : filtered;
+    const currentList = displayedTemplates;
     const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
 
     if (currentIndex > 0) {
@@ -209,7 +222,7 @@ export default function HomePage() {
     if (!viewingImage) return;
 
     // Get the current list of templates to navigate through
-    const currentList = expandedTheme ? themeTemplates : filtered;
+    const currentList = displayedTemplates;
     const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
 
     if (currentIndex < currentList.length - 1) {
@@ -222,8 +235,8 @@ export default function HomePage() {
   // Get current position in carousel
   const getCarouselPosition = () => {
     if (!viewingImage) return { current: 0, total: 0 };
-    const currentList = expandedTheme ? themeTemplates : filtered;
-    const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
+    const currentList = displayedTemplates;
+    const currentIndex = currentList.findIndex((t: any) => t.id === viewingImage.id);
     return { current: currentIndex + 1, total: currentList.length };
   };
 
@@ -245,7 +258,7 @@ export default function HomePage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [viewingImage, expandedTheme, themeTemplates, filtered]);
+  }, [viewingImage, displayedTemplates]);
 
   // Reset zoom when dialog closes
   useEffect(() => {
@@ -266,7 +279,8 @@ export default function HomePage() {
     }
     setIsLoading(true);
     // TODO: Implement actual generation with petByBreed
-    const finalPrompt = renderTemplateWithPetByBreed(selected.prompt, petByBreed);
+    const promptText = (selected as any).promptText || (selected as any).prompt?.prompt || "";
+    const finalPrompt = renderTemplateWithPetByBreed(promptText, petByBreed);
     console.log("Generating with prompt:", finalPrompt);
     setTimeout(() => setIsLoading(false), 1500);
   };
@@ -456,28 +470,28 @@ export default function HomePage() {
                 </Card>
               ) : (
                 <>
-                  {expandedTheme && (
+                  {expandedPromptId && (
                     <div className="mb-4 flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setExpandedTheme(null)}>
+                      <Button variant="outline" size="sm" onClick={() => setExpandedPromptId(null)}>
                         ← 返回
                       </Button>
                       <span className="text-sm text-muted-foreground">
-                        {THEMES.find((t) => t.key === expandedTheme)?.label || expandedTheme}
+                        查看提示词下的所有图片
                       </span>
                     </div>
                   )}
-                  {loadingThemeTemplates ? (
+                  {loadingPromptTemplates ? (
                     <div className="flex items-center justify-center py-20">
                       <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                     </div>
                   ) : (
                     <>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {filtered.map((item) => (
+                        {displayedTemplates.map((item) => (
                           <Card
                             key={item.id}
                             onClick={() => {
-                              if (!expandedTheme) {
+                              if (!expandedPromptId) {
                                 handleTemplateClick(item);
                               } else {
                                 handleImageClick(item);
@@ -502,6 +516,31 @@ export default function HomePage() {
                           </Card>
                         ))}
                       </div>
+
+                      {/* Pagination controls - only show when not expanded */}
+                      {!expandedPromptId && totalPages > 1 && (
+                        <div className="mt-6 flex items-center justify-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                          >
+                            上一页
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            第 {currentPage} / {totalPages} 页 (共 {totalItems} 个提示词)
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                          >
+                            下一页
+                          </Button>
+                        </div>
+                      )}
 
                       {/* Image viewer dialog */}
                       {viewingImage && (() => {
