@@ -446,28 +446,6 @@ export default function HomePage() {
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : selected ? (
-                <Card className="relative p-6">
-                  <button
-                    aria-label="Close"
-                    onClick={() => setSelected(null)}
-                    className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md border hover:bg-muted/50 z-10"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <div className="w-full overflow-hidden rounded-md">
-                    <img
-                      src={selected.publicUrls?.lg || ""}
-                      alt={selected.title || "Selected template"}
-                      className="w-full h-auto object-contain"
-                    />
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Flame className="h-3.5 w-3.5 text-orange-500" />
-                    <span>🔥{selected.usage}</span>
-                  </div>
-                  {selected.title && <div className="mt-2 text-sm font-medium">{selected.title}</div>}
-                </Card>
               ) : (
                 <>
                   {expandedPromptId && (
