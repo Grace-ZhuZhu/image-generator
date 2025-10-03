@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -571,10 +572,14 @@ export default function HomePage() {
                               )}
 
                               <div className="w-full overflow-hidden">
-                                <img
+                                <Image
                                   src={item.publicUrls?.md || ""}
                                   alt={item.title || "Template"}
+                                  width={320}
+                                  height={320}
+                                  loading="lazy"
                                   className="w-full h-auto object-contain transition hover:scale-105"
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 />
                               </div>
                               <div className="p-3">
@@ -697,9 +702,12 @@ export default function HomePage() {
                                   maxHeight: "95vh"
                                 }}
                               >
-                                <img
+                                <Image
                                   src={viewingImage.publicUrls?.orig || viewingImage.publicUrls?.lg || ""}
                                   alt={viewingImage.title || "Template"}
+                                  width={1920}
+                                  height={1920}
+                                  priority={true}
                                   className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-transform duration-200"
                                   style={{
                                     transform: `scale(${zoomLevel})`,

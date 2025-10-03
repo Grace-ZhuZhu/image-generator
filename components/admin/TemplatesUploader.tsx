@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,7 +90,13 @@ export default function TemplatesUploader() {
             <div className="mt-2 flex flex-wrap gap-2">
               {previews.map((src, i) => (
                 <div key={i} className="relative h-20 w-20">
-                  <img src={src} alt={`preview-${i}`} className="h-20 w-20 object-cover rounded border" />
+                  <Image
+                    src={src}
+                    alt={`preview-${i}`}
+                    width={80}
+                    height={80}
+                    className="h-20 w-20 object-cover rounded border"
+                  />
                   <button
                     type="button"
                     onClick={() => removeAt(i)}
