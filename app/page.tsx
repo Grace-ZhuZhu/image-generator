@@ -93,6 +93,10 @@ export default function HomePage() {
   const [viewingImage, setViewingImage] = useState<Template | null>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
+  // Dialog image loading state and error handling
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -216,6 +220,8 @@ export default function HomePage() {
   const handleImageClick = (template: Template) => {
     setViewingImage(template);
     setZoomLevel(1); // Reset zoom when opening
+    setImageLoading(true); // Reset loading state
+    setImageError(false); // Reset error state
   };
 
   // Zoom controls
@@ -243,6 +249,8 @@ export default function HomePage() {
       const prevTemplate = currentList[currentIndex - 1];
       setViewingImage(prevTemplate);
       setZoomLevel(1); // Reset zoom when changing image
+      setImageLoading(true); // Reset loading state
+      setImageError(false); // Reset error state
     }
   };
 
@@ -257,6 +265,8 @@ export default function HomePage() {
       const nextTemplate = currentList[currentIndex + 1];
       setViewingImage(nextTemplate);
       setZoomLevel(1); // Reset zoom when changing image
+      setImageLoading(true); // Reset loading state
+      setImageError(false); // Reset error state
     }
   };
 
@@ -267,6 +277,52 @@ export default function HomePage() {
     const currentIndex = currentList.findIndex((t: any) => t.id === viewingImage.id);
     return { current: currentIndex + 1, total: currentList.length };
   };
+
+  // Preload adjacent images for faster carousel navigation
+  useEffect(() => {
+    if (!viewingImage) return;
+
+    const currentList = displayedTemplates;
+    const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
+    const preloadedLinks: HTMLLinkElement[] = [];
+
+    // Preload next image
+    if (currentIndex < currentList.length - 1) {
+      const nextImage = currentList[currentIndex + 1];
+      const nextImageUrl = nextImage.publicUrls?.orig || nextImage.publicUrls?.lg || '';
+      if (nextImageUrl) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = nextImageUrl;
+        document.head.appendChild(link);
+        preloadedLinks.push(link);
+      }
+    }
+
+    // Preload previous image
+    if (currentIndex > 0) {
+      const prevImage = currentList[currentIndex - 1];
+      const prevImageUrl = prevImage.publicUrls?.orig || prevImage.publicUrls?.lg || '';
+      if (prevImageUrl) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = prevImageUrl;
+        document.head.appendChild(link);
+        preloadedLinks.push(link);
+      }
+    }
+
+    // Cleanup: remove preload links when component unmounts or viewingImage changes
+    return () => {
+      preloadedLinks.forEach(link => {
+        if (link.parentNode) {
+          document.head.removeChild(link);
+        }
+      });
+    };
+  }, [viewingImage, displayedTemplates]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -696,24 +752,61 @@ export default function HomePage() {
                               {/* Image container with scroll */}
                               <div
                                 ref={imageContainerRef}
-                                className="overflow-auto flex items-center justify-center"
+                                className="overflow-auto flex items-center justify-center relative"
                                 style={{
                                   maxWidth: "95vw",
                                   maxHeight: "95vh"
                                 }}
                               >
-                                <Image
-                                  src={viewingImage.publicUrls?.orig || viewingImage.publicUrls?.lg || ""}
-                                  alt={viewingImage.title || "Template"}
-                                  width={1920}
-                                  height={1920}
-                                  priority={true}
-                                  className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-transform duration-200"
-                                  style={{
-                                    transform: `scale(${zoomLevel})`,
-                                    transformOrigin: "center center"
-                                  }}
-                                />
+                                {/* Loading indicator */}
+                                {imageLoading && !imageError && (
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-40">
+                                    <div className="flex flex-col items-center gap-3">
+                                      <Loader2 className="h-10 w-10 animate-spin text-white" />
+                                      <p className="text-white text-sm">加载中...</p>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Error state */}
+                                {imageError ? (
+                                  <div className="flex flex-col items-center justify-center gap-4 p-8 min-h-[400px]">
+                                    <div className="text-white text-center space-y-2">
+                                      <p className="text-lg font-medium">图片加载失败</p>
+                                      <p className="text-sm text-white/70">请检查网络连接或稍后重试</p>
+                                    </div>
+                                    <Button
+                                      onClick={() => {
+                                        setImageError(false);
+                                        setImageLoading(true);
+                                        // Force re-render by updating a key or state
+                                      }}
+                                      className="bg-white/20 hover:bg-white/30 text-white border-white/20"
+                                    >
+                                      <RefreshCw className="h-4 w-4 mr-2" />
+                                      重试
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Image
+                                    src={viewingImage.publicUrls?.orig || viewingImage.publicUrls?.lg || ""}
+                                    alt={viewingImage.title || "Template"}
+                                    width={1920}
+                                    height={1920}
+                                    priority={true}
+                                    onLoadingComplete={() => setImageLoading(false)}
+                                    onError={() => {
+                                      setImageLoading(false);
+                                      setImageError(true);
+                                    }}
+                                    className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-all duration-300"
+                                    style={{
+                                      transform: `scale(${zoomLevel})`,
+                                      transformOrigin: "center center",
+                                      opacity: imageLoading ? 0 : 1
+                                    }}
+                                  />
+                                )}
                               </div>
                             </DialogContent>
                           </Dialog>
