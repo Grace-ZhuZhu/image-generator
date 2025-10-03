@@ -950,33 +950,90 @@ export default function LazyImage({
 
 ---
 
-#### **任务 1.3：添加模糊占位符**
-- [ ] 创建 `utils/image-placeholders.ts` 工具文件
-  - [ ] 实现 `shimmer()` 函数生成 SVG 占位符
-  - [ ] 实现 `toBase64()` 函数
-- [ ] 在 LazyImage 组件中集成占位符
-  - [ ] 添加 `placeholder="blur"` 属性
-  - [ ] 使用 `blurDataURL` 或 SVG shimmer
+#### **任务 1.3：添加模糊占位符** ✅
+
+##### 🎯 任务目标
+
+为图片添加模糊占位符（shimmer 动画），实现：
+- ✅ 创建 shimmer SVG 生成工具
+- ✅ 集成到 LazyImage 组件
+- ✅ 改善加载体验
+- ✅ 防止布局偏移（CLS）
+
+##### ToDo
+- [x] 创建 `utils/image-placeholders.ts` 工具文件
+  - [x] 实现 `shimmer()` 函数生成 SVG 占位符
+  - [x] 实现 `toBase64()` 函数
+  - [x] 实现 `getShimmerDataURL()` 辅助函数
+  - [x] 实现 `getGrayPlaceholder()` 和 `getGradientPlaceholder()` 函数
+- [x] 在 LazyImage 组件中集成占位符
+  - [x] 添加 `usePlaceholder` 属性
+  - [x] 添加 `placeholder="blur"` 属性
+  - [x] 使用 `blurDataURL` 配合 SVG shimmer
+  - [x] 条件渲染骨架屏或模糊占位符
 - [ ] 测试占位符效果
   - [ ] 慢速网络下验证模糊效果
   - [ ] 确认无布局偏移（CLS）
+  - [ ] 验证 shimmer 动画效果
 
 **技术实现要点：**
+
 ```tsx
-const shimmer = (w: number, h: number) => `
-<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
+// utils/image-placeholders.ts - shimmer 动画 SVG
+export const shimmer = (w: number, h: number): string => `
+<svg width="${w}" height="${h}" version="1.1" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="g">
       <stop stop-color="#f6f7f8" offset="0%" />
       <stop stop-color="#edeef1" offset="20%" />
       <stop stop-color="#f6f7f8" offset="40%" />
+      <stop stop-color="#f6f7f8" offset="100%" />
     </linearGradient>
   </defs>
   <rect width="${w}" height="${h}" fill="#f6f7f8" />
-  <rect width="${w}" height="${h}" fill="url(#g)" />
-  <animate attributeName="x" from="-${w}" to="${w}" dur="1s" repeatCount="indefinite" />
+  <rect id="r" width="${w}" height="${h}" fill="url(#g)" />
+  <animate xlink:href="#r" attributeName="x" from="-${w}" to="${w}" dur="1s" repeatCount="indefinite" />
 </svg>`;
+
+export const toBase64 = (str: string): string =>
+  typeof window === "undefined"
+    ? Buffer.from(str).toString("base64")
+    : window.btoa(str);
+
+export const getShimmerDataURL = (w: number, h: number): string =>
+  `data:image/svg+xml;base64,${toBase64(shimmer(w, h))}`;
+
+// LazyImage 组件中的使用
+<Image
+  src={src}
+  alt={alt}
+  width={width}
+  height={height}
+  placeholder={usePlaceholder ? "blur" : "empty"}
+  blurDataURL={usePlaceholder ? getShimmerDataURL(width, height) : undefined}
+  onLoadingComplete={() => setIsLoaded(true)}
+  className={`transition-opacity duration-300 ${
+    isLoaded ? "opacity-100" : "opacity-0"
+  }`}
+/>
+
+// 使用示例
+<LazyImage
+  src={item.publicUrls?.md || ""}
+  alt={item.title || "Template"}
+  width={320}
+  height={320}
+  priority={index < 6}
+  usePlaceholder={true}  // 启用模糊占位符
+  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+/>
 ```
+
+**预期效果：**
+- ✨ 图片加载前显示 shimmer 动画占位符
+- 🎨 优雅的加载过渡效果
+- 📊 CLS 指标接近 0（无布局偏移）
+- 🚀 更好的用户感知性能
 
 ---
 

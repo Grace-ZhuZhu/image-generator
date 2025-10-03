@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getShimmerDataURL } from "@/utils/image-placeholders";
 
 interface LazyImageProps {
   src: string;
@@ -14,17 +15,19 @@ interface LazyImageProps {
   sizes?: string;
   onLoadingComplete?: () => void;
   onError?: () => void;
+  usePlaceholder?: boolean; // 是否使用模糊占位符
 }
 
 /**
  * LazyImage 组件 - 带有 Intersection Observer 的懒加载图片组件
- * 
+ *
  * 功能：
  * - 使用 Intersection Observer API 实现真正的懒加载
  * - 支持 priority 属性，优先加载重要图片
  * - 显示骨架屏占位符
  * - 提前 50px 开始加载（rootMargin）
  * - 淡入动画效果
+ * - 模糊占位符支持（shimmer 动画）
  */
 export default function LazyImage({
   src,
@@ -36,6 +39,7 @@ export default function LazyImage({
   sizes,
   onLoadingComplete,
   onError,
+  usePlaceholder = true, // 默认使用模糊占位符
 }: LazyImageProps) {
   const [isInView, setIsInView] = useState(priority); // priority 图片立即加载
   const [isLoaded, setIsLoaded] = useState(false);
@@ -88,10 +92,10 @@ export default function LazyImage({
 
   return (
     <div ref={imgRef} className="relative w-full h-full">
-      {/* 骨架屏占位符 - 在图片加载前显示 */}
-      {!isLoaded && (
-        <Skeleton 
-          className="absolute inset-0 w-full h-full" 
+      {/* 骨架屏占位符 - 在图片加载前显示（仅当不使用模糊占位符时） */}
+      {!isLoaded && !usePlaceholder && (
+        <Skeleton
+          className="absolute inset-0 w-full h-full"
           style={{ aspectRatio: `${width} / ${height}` }}
         />
       )}
@@ -106,6 +110,8 @@ export default function LazyImage({
           loading={priority ? "eager" : "lazy"}
           priority={priority}
           sizes={sizes}
+          placeholder={usePlaceholder ? "blur" : "empty"}
+          blurDataURL={usePlaceholder ? getShimmerDataURL(width, height) : undefined}
           onLoadingComplete={handleLoadingComplete}
           onError={handleError}
           className={`${className} transition-opacity duration-300 ${
