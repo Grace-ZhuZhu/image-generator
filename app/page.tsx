@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import LazyImage from "@/components/LazyImage";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -592,7 +593,7 @@ export default function HomePage() {
                     <>
                       <TooltipProvider>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                          {displayedTemplates.map((item) => (
+                          {displayedTemplates.map((item, index) => (
                             <Card
                               key={item.id}
                               onClick={() => {
@@ -628,12 +629,12 @@ export default function HomePage() {
                               )}
 
                               <div className="w-full overflow-hidden">
-                                <Image
+                                <LazyImage
                                   src={item.publicUrls?.md || ""}
                                   alt={item.title || "Template"}
                                   width={320}
                                   height={320}
-                                  loading="lazy"
+                                  priority={index < 6}
                                   className="w-full h-auto object-contain transition hover:scale-105"
                                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 />

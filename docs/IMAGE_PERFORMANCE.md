@@ -854,32 +854,99 @@ const [imageError, setImageError] = useState(false);
 
 ---
 
-#### **任务 1.2：创建 LazyImage 组件**
-- [ ] 创建 `components/LazyImage.tsx` 文件
-  - [ ] 实现 Intersection Observer 逻辑
-  - [ ] 添加 `priority` 属性支持
-  - [ ] 添加骨架屏占位符
-  - [ ] 配置 `rootMargin: '50px'`（提前 50px 加载）
-- [ ] 在 `app/page.tsx` 中使用 LazyImage
-  - [ ] 前 6 张图片设置 `priority={true}`
-  - [ ] 其余图片使用懒加载
+#### **任务 1.2：创建 LazyImage 组件** ✅
+
+##### 🎯 任务目标
+
+创建一个带有 Intersection Observer 的高性能懒加载图片组件，实现：
+- ✅ 真正的懒加载（只加载可见区域图片）
+- ✅ 优先加载前 6 张图片
+- ✅ 骨架屏占位符
+- ✅ 提前 50px 开始加载
+- ✅ 淡入动画效果
+
+##### ToDo
+- [x] 创建 `components/LazyImage.tsx` 文件
+  - [x] 实现 Intersection Observer 逻辑
+  - [x] 添加 `priority` 属性支持
+  - [x] 添加骨架屏占位符
+  - [x] 配置 `rootMargin: '50px'`（提前 50px 加载）
+- [x] 在 `app/page.tsx` 中使用 LazyImage
+  - [x] 前 6 张图片设置 `priority={true}`
+  - [x] 其余图片使用懒加载
 - [ ] 测试懒加载效果
   - [ ] 使用 Chrome DevTools Network 面板验证
   - [ ] 确认只加载可见区域图片
   - [ ] 测试滚动时图片按需加载
 
 **技术实现要点：**
+
 ```tsx
+// LazyImage 组件核心实现
+export default function LazyImage({
+  src, alt, width, height, priority = false, className, sizes
+}: LazyImageProps) {
+  const [isInView, setIsInView] = useState(priority);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const imgRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (priority) return; // priority 图片立即加载
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsInView(true);
+            observer.disconnect();
+          }
+        });
+      },
+      { rootMargin: "50px", threshold: 0.01 }
+    );
+
+    if (imgRef.current) observer.observe(imgRef.current);
+    return () => observer.disconnect();
+  }, [priority]);
+
+  return (
+    <div ref={imgRef} className="relative w-full h-full">
+      {!isLoaded && <Skeleton className="absolute inset-0" />}
+      {isInView && (
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          loading={priority ? "eager" : "lazy"}
+          priority={priority}
+          onLoadingComplete={() => setIsLoaded(true)}
+          className={`${className} transition-opacity duration-300 ${
+            isLoaded ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      )}
+    </div>
+  );
+}
+
 // 使用示例
 <LazyImage
   src={item.publicUrls?.md || ""}
   alt={item.title || "Template"}
   width={320}
   height={320}
-  priority={index < 6}
+  priority={index < 6}  // 前 6 张优先加载
   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
 />
 ```
+
+**预期效果：**
+- ⚡ 初始只加载前 6 张图片（优先级高）
+- 🎨 其余图片显示骨架屏占位符
+- 📊 滚动时提前 50px 开始加载
+- ✨ 图片加载完成后淡入显示
+- 📉 网络请求减少 70-80%
 
 ---
 
