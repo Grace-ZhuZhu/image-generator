@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -559,41 +560,45 @@ export default function HomePage() {
             </div>
 
             <div className="mt-4">
-              {loadingTemplates ? (
-                <div className="flex items-center justify-center py-20">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              {expandedPromptId && (
+                <div className="mb-4 flex items-center gap-3">
+                  <Button variant="outline" size="sm" onClick={() => setExpandedPromptId(null)}>
+                    ← {L.ui.back}
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="prompt-checkbox"
+                      checked={selected?.prompt_id === expandedPromptId}
+                      onCheckedChange={() => handleCheckboxToggle(expandedPromptId)}
+                    />
+                    <label
+                      htmlFor="prompt-checkbox"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {L.ui.useStyleAsTemplate}
+                    </label>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  {expandedPromptId && (
-                    <div className="mb-4 flex items-center gap-3">
-                      <Button variant="outline" size="sm" onClick={() => setExpandedPromptId(null)}>
-                        ← {L.ui.back}
-                      </Button>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="prompt-checkbox"
-                          checked={selected?.prompt_id === expandedPromptId}
-                          onCheckedChange={() => handleCheckboxToggle(expandedPromptId)}
-                        />
-                        <label
-                          htmlFor="prompt-checkbox"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {L.ui.useStyleAsTemplate}
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                  {loadingPromptTemplates ? (
-                    <div className="flex items-center justify-center py-20">
-                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : (
-                    <>
-                      <TooltipProvider>
+              )}
+
+              {/* 画廊区域 - 始终显示，每个图片使用独立的 LazyImage 占位符 */}
+              <TooltipProvider>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                          {displayedTemplates.map((item, index) => (
+                          {/* 如果正在加载且没有数据，显示骨架屏卡片 */}
+                          {(loadingTemplates || loadingPromptTemplates) && displayedTemplates.length === 0 ? (
+                            Array.from({ length: 6 }).map((_, index) => (
+                              <Card key={`skeleton-${index}`} className="overflow-hidden">
+                                <div className="w-full aspect-square">
+                                  <Skeleton className="w-full h-full" />
+                                </div>
+                                <div className="p-3 space-y-2">
+                                  <Skeleton className="h-4 w-12" />
+                                  <Skeleton className="h-4 w-full" />
+                                </div>
+                              </Card>
+                            ))
+                          ) : (
+                            displayedTemplates.map((item, index) => (
                             <Card
                               key={item.id}
                               onClick={() => {
@@ -647,9 +652,9 @@ export default function HomePage() {
                                 {item.title && <div className="mt-1 text-sm font-medium line-clamp-1">{item.title}</div>}
                               </div>
                             </Card>
-                          ))}
+                          ))
+                          )}
                         </div>
-                      </TooltipProvider>
 
                       {/* Pagination controls - only show when not expanded */}
                       {!expandedPromptId && totalPages > 1 && (
@@ -813,10 +818,7 @@ export default function HomePage() {
                           </Dialog>
                         );
                       })()}
-                    </>
-                  )}
-                </>
-              )}
+              </TooltipProvider>
             </div>
           </div>
 

@@ -91,13 +91,26 @@ export default function LazyImage({
   };
 
   return (
-    <div ref={imgRef} className="relative w-full h-full">
-      {/* 骨架屏占位符 - 在图片加载前显示（仅当不使用模糊占位符时） */}
-      {!isLoaded && !usePlaceholder && (
-        <Skeleton
-          className="absolute inset-0 w-full h-full"
-          style={{ aspectRatio: `${width} / ${height}` }}
-        />
+    <div
+      ref={imgRef}
+      className="relative w-full overflow-hidden"
+      style={{ aspectRatio: `${width} / ${height}` }}
+    >
+      {/* 占位符 - 在图片未加载完成时显示 */}
+      {!isLoaded && (
+        <div className="absolute inset-0 w-full h-full z-10">
+          {usePlaceholder ? (
+            // 使用 shimmer 动画占位符
+            <img
+              src={getShimmerDataURL(width, height)}
+              alt="Loading..."
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            // 使用骨架屏占位符
+            <Skeleton className="w-full h-full" />
+          )}
+        </div>
       )}
 
       {/* 只有在进入视口时才渲染 Image 组件 */}
@@ -110,8 +123,6 @@ export default function LazyImage({
           loading={priority ? "eager" : "lazy"}
           priority={priority}
           sizes={sizes}
-          placeholder={usePlaceholder ? "blur" : "empty"}
-          blurDataURL={usePlaceholder ? getShimmerDataURL(width, height) : undefined}
           onLoadingComplete={handleLoadingComplete}
           onError={handleError}
           className={`${className} transition-opacity duration-300 ${

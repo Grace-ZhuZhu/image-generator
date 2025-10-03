@@ -968,9 +968,18 @@ export default function LazyImage({
   - [x] 实现 `getGrayPlaceholder()` 和 `getGradientPlaceholder()` 函数
 - [x] 在 LazyImage 组件中集成占位符
   - [x] 添加 `usePlaceholder` 属性
-  - [x] 添加 `placeholder="blur"` 属性
-  - [x] 使用 `blurDataURL` 配合 SVG shimmer
+  - [x] 修复占位符显示逻辑（使用 `<img>` 标签显示 shimmer SVG）
   - [x] 条件渲染骨架屏或模糊占位符
+  - [x] 确保每个图片独立管理加载状态
+- [x] 移除全局 loading 指示器
+  - [x] 移除 `loadingTemplates` 全局 loading 覆盖
+  - [x] 移除 `loadingPromptTemplates` 全局 loading 覆盖
+  - [x] 画廊区域始终显示，每个图片使用独立的 LazyImage 占位符
+  - [x] 数据加载时显示骨架屏卡片（6个占位符卡片）
+- [x] 修复 LazyImage 占位符显示问题
+  - [x] 修复容器高度问题（使用 `aspectRatio` 样式）
+  - [x] 修复占位符定位问题（添加 `z-10` 层级）
+  - [x] 确保 shimmer SVG 正确生成和显示
 - [ ] 测试占位符效果
   - [ ] 慢速网络下验证模糊效果
   - [ ] 确认无布局偏移（CLS）
@@ -1003,19 +1012,41 @@ export const toBase64 = (str: string): string =>
 export const getShimmerDataURL = (w: number, h: number): string =>
   `data:image/svg+xml;base64,${toBase64(shimmer(w, h))}`;
 
-// LazyImage 组件中的使用
-<Image
-  src={src}
-  alt={alt}
-  width={width}
-  height={height}
-  placeholder={usePlaceholder ? "blur" : "empty"}
-  blurDataURL={usePlaceholder ? getShimmerDataURL(width, height) : undefined}
-  onLoadingComplete={() => setIsLoaded(true)}
-  className={`transition-opacity duration-300 ${
-    isLoaded ? "opacity-100" : "opacity-0"
-  }`}
-/>
+// LazyImage 组件中的使用（修复后）
+return (
+  <div ref={imgRef} className="relative w-full h-full">
+    {/* 占位符 - 在图片未加载完成时显示 */}
+    {!isLoaded && (
+      <div className="absolute inset-0 w-full h-full">
+        {usePlaceholder ? (
+          // 使用 shimmer 动画占位符
+          <img
+            src={getShimmerDataURL(width, height)}
+            alt="Loading..."
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          // 使用骨架屏占位符
+          <Skeleton className="w-full h-full" />
+        )}
+      </div>
+    )}
+
+    {/* 只有在进入视口时才渲染 Image 组件 */}
+    {isInView && (
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        onLoadingComplete={() => setIsLoaded(true)}
+        className={`transition-opacity duration-300 ${
+          isLoaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    )}
+  </div>
+);
 
 // 使用示例
 <LazyImage
