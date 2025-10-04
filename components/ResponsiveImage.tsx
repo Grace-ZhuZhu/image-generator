@@ -138,7 +138,7 @@ export default function ResponsiveImage({
         <picture>
           {/* WebP 格式（优先） */}
           {webp && <source srcSet={webp} type="image/webp" />}
-          
+
           {/* JPEG 格式（回退） */}
           <img
             src={jpg}
@@ -146,6 +146,7 @@ export default function ResponsiveImage({
             width={width}
             height={height}
             loading={priority ? "eager" : "lazy"}
+            crossOrigin="anonymous"
             onLoad={handleLoad}
             onError={handleError}
             className={`${className} transition-opacity duration-300 ${

@@ -64,7 +64,11 @@ export async function POST(req: Request) {
         svc.storage.from("templates").upload(`${id}/${key}`, data, {
           upsert: true,
           contentType,
-          cacheControl: "86400", // 24 小时缓存
+          // 优化缓存策略：
+          // - max-age=31536000: 缓存 1 年（图片 URL 包含 UUID，内容不变）
+          // - public: 允许 CDN 和浏览器缓存
+          // - immutable: 告诉浏览器资源永不改变，刷新时不需要重新验证
+          cacheControl: "public, max-age=31536000, immutable",
         });
 
       const buf = Buffer.from(await file.arrayBuffer());

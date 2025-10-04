@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
-export const dynamic = "force-dynamic";
+// 启用 ISR（Incremental Static Regeneration）
+// 每 60 秒重新验证缓存
+export const revalidate = 60;
 
 // GET /api/templates
 // Query params:
@@ -25,6 +27,10 @@ export async function GET(req: Request) {
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const offset = (page - 1) * limit;
+
+    // 记录请求信息（用于监控缓存命中率）
+    const requestTime = Date.now();
+    console.log(`[API Cache] Request: mode=${mode}, theme=${theme}, page=${page}, prompt_id=${promptId}`);
 
     const supabase = await createClient();
 
@@ -96,7 +102,21 @@ export async function GET(req: Request) {
         };
       });
 
-      return NextResponse.json({ items, count: items.length, page, limit, total: items.length });
+      // 记录响应时间
+      const responseTime = Date.now() - requestTime;
+      console.log(`[API Cache] Response: mode=by-prompt, items=${items.length}, time=${responseTime}ms`);
+
+      return NextResponse.json(
+        { items, count: items.length, page, limit, total: items.length },
+        {
+          headers: {
+            // public: 可以被任何缓存存储
+            // s-maxage=300: CDN/代理缓存 5 分钟
+            // stale-while-revalidate=600: 过期后 10 分钟内返回旧数据，同时后台重新验证
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+          },
+        }
+      );
     }
 
     // Mode: representatives - get one image per prompt (highest usage)
@@ -177,13 +197,27 @@ export async function GET(req: Request) {
 
     const items = representatives.filter((item) => item !== null);
 
-    return NextResponse.json({
-      items,
-      count: items.length,
-      page,
-      limit,
-      total: totalPrompts
-    });
+    // 记录响应时间
+    const responseTime = Date.now() - requestTime;
+    console.log(`[API Cache] Response: mode=representatives, theme=${theme}, items=${items.length}, time=${responseTime}ms`);
+
+    return NextResponse.json(
+      {
+        items,
+        count: items.length,
+        page,
+        limit,
+        total: totalPrompts
+      },
+      {
+        headers: {
+          // public: 可以被任何缓存存储
+          // s-maxage=300: CDN/代理缓存 5 分钟
+          // stale-while-revalidate=600: 过期后 10 分钟内返回旧数据，同时后台重新验证
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      }
+    );
   } catch (e: any) {
     console.error("/api/templates GET error:", e);
     return NextResponse.json({ error: e?.message ?? "Failed to fetch templates" }, { status: 500 });

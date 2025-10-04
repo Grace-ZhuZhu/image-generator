@@ -386,6 +386,7 @@ export default function HomePage() {
                       <img
                         src={getImageUrlWithFallback(selected.publicUrls, ['sm', 'md'])}
                         alt={selected.title || "Template"}
+                        crossOrigin="anonymous"
                         className="w-full h-full rounded object-cover border"
                       />
                       <button
@@ -830,6 +831,7 @@ export default function HomePage() {
                                           width={1920}
                                           height={1920}
                                           loading="eager"
+                                          crossOrigin="anonymous"
                                           onLoad={() => setImageLoading(false)}
                                           onError={() => {
                                             setImageLoading(false);
