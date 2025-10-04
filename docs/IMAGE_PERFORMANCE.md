@@ -977,9 +977,13 @@ export default function LazyImage({
   - [x] 画廊区域始终显示，每个图片使用独立的 LazyImage 占位符
   - [x] 数据加载时显示骨架屏卡片（6个占位符卡片）
 - [x] 修复 LazyImage 占位符显示问题
-  - [x] 修复容器高度问题（使用 `aspectRatio` 样式）
+  - [x] 修复容器高度问题（占位符使用 `aspectRatio` 样式）
   - [x] 修复占位符定位问题（添加 `z-10` 层级）
   - [x] 确保 shimmer SVG 正确生成和显示
+- [x] 修复图片宽高比问题
+  - [x] 移除容器的固定 `aspectRatio`（避免强制正方形）
+  - [x] 只在占位符上使用 `aspectRatio`（保持初始布局）
+  - [x] 让实际图片按照原始比例显示（使用 `h-auto`）
 - [ ] 测试占位符效果
   - [ ] 慢速网络下验证模糊效果
   - [ ] 确认无布局偏移（CLS）

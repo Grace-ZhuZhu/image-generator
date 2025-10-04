@@ -93,12 +93,14 @@ export default function LazyImage({
   return (
     <div
       ref={imgRef}
-      className="relative w-full overflow-hidden"
-      style={{ aspectRatio: `${width} / ${height}` }}
+      className="relative w-full"
     >
       {/* 占位符 - 在图片未加载完成时显示 */}
       {!isLoaded && (
-        <div className="absolute inset-0 w-full h-full z-10">
+        <div
+          className="w-full z-10"
+          style={{ aspectRatio: `${width} / ${height}` }}
+        >
           {usePlaceholder ? (
             // 使用 shimmer 动画占位符
             <img
