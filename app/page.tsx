@@ -3,11 +3,11 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import LazyImage from "@/components/LazyImage";
+import ResponsiveImage from "@/components/ResponsiveImage";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { getImageUrlWithFallback } from "@/utils/image-url-helper";
 
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -291,7 +291,7 @@ export default function HomePage() {
     // Preload next image
     if (currentIndex < currentList.length - 1) {
       const nextImage = currentList[currentIndex + 1];
-      const nextImageUrl = nextImage.publicUrls?.orig || nextImage.publicUrls?.lg || '';
+      const nextImageUrl = getImageUrlWithFallback(nextImage.publicUrls, ['orig', 'lg']);
       if (nextImageUrl) {
         const link = document.createElement('link');
         link.rel = 'preload';
@@ -305,7 +305,7 @@ export default function HomePage() {
     // Preload previous image
     if (currentIndex > 0) {
       const prevImage = currentList[currentIndex - 1];
-      const prevImageUrl = prevImage.publicUrls?.orig || prevImage.publicUrls?.lg || '';
+      const prevImageUrl = getImageUrlWithFallback(prevImage.publicUrls, ['orig', 'lg']);
       if (prevImageUrl) {
         const link = document.createElement('link');
         link.rel = 'preload';
@@ -384,7 +384,7 @@ export default function HomePage() {
                   <div className="flex items-center gap-2">
                     <div className="relative flex-shrink-0 w-10 h-10">
                       <img
-                        src={selected.publicUrls?.sm || selected.publicUrls?.md || ""}
+                        src={getImageUrlWithFallback(selected.publicUrls, ['sm', 'md'])}
                         alt={selected.title || "Template"}
                         className="w-full h-full rounded object-cover border"
                       />
@@ -634,14 +634,14 @@ export default function HomePage() {
                               )}
 
                               <div className="w-full overflow-hidden">
-                                <LazyImage
-                                  src={item.publicUrls?.md || ""}
+                                <ResponsiveImage
+                                  publicUrls={item.publicUrls}
+                                  size="md"
                                   alt={item.title || "Template"}
                                   width={320}
                                   height={320}
                                   priority={index < 6}
                                   className="w-full h-auto object-contain transition hover:scale-105"
-                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                                 />
                               </div>
                               <div className="p-3">
@@ -794,24 +794,57 @@ export default function HomePage() {
                                     </Button>
                                   </div>
                                 ) : (
-                                  <Image
-                                    src={viewingImage.publicUrls?.orig || viewingImage.publicUrls?.lg || ""}
-                                    alt={viewingImage.title || "Template"}
-                                    width={1920}
-                                    height={1920}
-                                    priority={true}
-                                    onLoadingComplete={() => setImageLoading(false)}
-                                    onError={() => {
-                                      setImageLoading(false);
-                                      setImageError(true);
-                                    }}
-                                    className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-all duration-300"
-                                    style={{
-                                      transform: `scale(${zoomLevel})`,
-                                      transformOrigin: "center center",
-                                      opacity: imageLoading ? 0 : 1
-                                    }}
-                                  />
+                                  (() => {
+                                    // 获取图片 URL（支持新旧格式）
+                                    const getImageUrls = () => {
+                                      const urls = viewingImage.publicUrls;
+                                      if (!urls) return { webp: '', jpg: '' };
+
+                                      // 优先使用 orig，回退到 lg
+                                      for (const size of ['orig', 'lg'] as const) {
+                                        const sizeUrls = urls[size];
+                                        if (!sizeUrls) continue;
+
+                                        // 新格式
+                                        if (typeof sizeUrls === 'object' && 'jpg' in sizeUrls && 'webp' in sizeUrls) {
+                                          return { webp: sizeUrls.webp || '', jpg: sizeUrls.jpg || '' };
+                                        }
+
+                                        // 旧格式
+                                        if (typeof sizeUrls === 'string') {
+                                          return { webp: '', jpg: sizeUrls };
+                                        }
+                                      }
+
+                                      return { webp: '', jpg: '' };
+                                    };
+
+                                    const { webp, jpg } = getImageUrls();
+
+                                    return (
+                                      <picture>
+                                        {webp && <source srcSet={webp} type="image/webp" />}
+                                        <img
+                                          src={jpg}
+                                          alt={viewingImage.title || "Template"}
+                                          width={1920}
+                                          height={1920}
+                                          loading="eager"
+                                          onLoad={() => setImageLoading(false)}
+                                          onError={() => {
+                                            setImageLoading(false);
+                                            setImageError(true);
+                                          }}
+                                          className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-all duration-300"
+                                          style={{
+                                            transform: `scale(${zoomLevel})`,
+                                            transformOrigin: "center center",
+                                            opacity: imageLoading ? 0 : 1
+                                          }}
+                                        />
+                                      </picture>
+                                    );
+                                  })()
                                 )}
                               </div>
                             </DialogContent>

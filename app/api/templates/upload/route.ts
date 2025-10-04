@@ -58,24 +58,51 @@ export async function POST(req: Request) {
 
     const processOne = async (file: File) => {
       const id = globalThis.crypto?.randomUUID?.() || (await import("crypto")).randomUUID();
-      const upload = (key: string, data: Buffer) =>
-        svc.storage.from("templates").upload(`${id}/${key}.jpg`, data, {
+
+      // 上传函数：支持指定格式和 contentType
+      const upload = (key: string, data: Buffer, contentType: string) =>
+        svc.storage.from("templates").upload(`${id}/${key}`, data, {
           upsert: true,
-          contentType: "image/jpeg",
+          contentType,
+          cacheControl: "86400", // 24 小时缓存
         });
+
       const buf = Buffer.from(await file.arrayBuffer());
+
+      // 处理原图：生成 JPEG 和 WebP 两种格式
       const origJpeg = await sharp(buf).jpeg({ quality: 90 }).toBuffer();
-      await upload("orig", origJpeg);
+      const origWebp = await sharp(buf).webp({ quality: 85 }).toBuffer();
+
+      await Promise.all([
+        upload("orig.jpg", origJpeg, "image/jpeg"),
+        upload("orig.webp", origWebp, "image/webp"),
+      ]);
+
+      // 处理各个尺寸：为每个尺寸生成 JPEG 和 WebP
       await Promise.all(
-        Object.entries(sizes).map(async ([k, w]) => {
-          const resized = await sharp(origJpeg)
-            .resize({ width: Number(w) })
-            .jpeg({ quality: 82 })
-            .toBuffer();
-          await upload(k, resized);
+        Object.entries(sizes).map(async ([sizeName, width]) => {
+          const resized = sharp(buf).resize({ width: Number(width) });
+
+          const [jpegBuffer, webpBuffer] = await Promise.all([
+            resized.clone().jpeg({ quality: 82 }).toBuffer(),
+            resized.clone().webp({ quality: 78 }).toBuffer(),
+          ]);
+
+          return Promise.all([
+            upload(`${sizeName}.jpg`, jpegBuffer, "image/jpeg"),
+            upload(`${sizeName}.webp`, webpBuffer, "image/webp"),
+          ]);
         })
       );
-      const images = { orig: `${id}/orig.jpg`, sm: `${id}/sm.jpg`, md: `${id}/md.jpg`, lg: `${id}/lg.jpg` } as const;
+
+      // 构建图片路径对象（新的多格式结构）
+      const images = {
+        orig: { jpg: `${id}/orig.jpg`, webp: `${id}/orig.webp` },
+        sm: { jpg: `${id}/sm.jpg`, webp: `${id}/sm.webp` },
+        md: { jpg: `${id}/md.jpg`, webp: `${id}/md.webp` },
+        lg: { jpg: `${id}/lg.jpg`, webp: `${id}/lg.webp` },
+      };
+
       return { id, images };
     }
 
@@ -139,10 +166,10 @@ export async function POST(req: Request) {
           id,
           images,
           publicUrls: {
-            orig: pub(images.orig),
-            sm: pub(images.sm),
-            md: pub(images.md),
-            lg: pub(images.lg),
+            orig: { jpg: pub(images.orig.jpg), webp: pub(images.orig.webp) },
+            sm: { jpg: pub(images.sm.jpg), webp: pub(images.sm.webp) },
+            md: { jpg: pub(images.md.jpg), webp: pub(images.md.webp) },
+            lg: { jpg: pub(images.lg.jpg), webp: pub(images.lg.webp) },
           },
         })),
       },

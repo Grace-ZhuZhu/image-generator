@@ -1074,15 +1074,15 @@ return (
 
 ### **🎨 阶段 2：格式优化（第 3-4 周）**
 
-#### **任务 2.1：更新上传 API 支持 WebP**
-- [ ] 修改 `app/api/templates/upload/route.ts`
-  - [ ] 为每个尺寸生成 WebP 变体
-  - [ ] 保留 JPEG 作为回退格式
-  - [ ] 更新 `processOne` 函数逻辑
-  - [ ] 修改存储路径结构（`{id}/{size}.{format}`）
-- [ ] 更新数据库 schema
-  - [ ] 修改 `templates.images` 字段结构支持多格式
-  - [ ] 添加迁移脚本
+#### **任务 2.1：更新上传 API 支持 WebP** ✅
+- [x] 修改 `app/api/templates/upload/route.ts`
+  - [x] 为每个尺寸生成 WebP 变体
+  - [x] 保留 JPEG 作为回退格式
+  - [x] 更新 `processOne` 函数逻辑
+  - [x] 修改存储路径结构（`{id}/{size}.{format}`）
+- [x] 更新数据库 schema
+  - [x] 修改 `templates.images` 字段结构支持多格式
+  - [x] 添加迁移脚本
 - [ ] 测试上传功能
   - [ ] 验证生成 JPEG 和 WebP 两种格式
   - [ ] 检查文件大小对比
@@ -1090,52 +1090,214 @@ return (
 
 **技术实现要点：**
 ```typescript
-// 生成多格式示例
-const sizes = { sm: 80, md: 320, lg: 640 };
-for (const [sizeName, width] of Object.entries(sizes)) {
-  const resized = sharp(buf).resize({ width });
+// 实际实现（已完成）
+const sizes: Record<string, number> = { sm: 80, md: 320, lg: 640 };
+
+const processOne = async (file: File) => {
+  const id = globalThis.crypto?.randomUUID?.() || (await import("crypto")).randomUUID();
+
+  // 上传函数：支持指定格式和 contentType
+  const upload = (key: string, data: Buffer, contentType: string) =>
+    svc.storage.from("templates").upload(`${id}/${key}`, data, {
+      upsert: true,
+      contentType,
+      cacheControl: "86400", // 24 小时缓存
+    });
+
+  const buf = Buffer.from(await file.arrayBuffer());
+
+  // 处理原图：生成 JPEG 和 WebP 两种格式
+  const origJpeg = await sharp(buf).jpeg({ quality: 90 }).toBuffer();
+  const origWebp = await sharp(buf).webp({ quality: 85 }).toBuffer();
+
   await Promise.all([
-    upload(`${sizeName}.jpg`, await resized.clone().jpeg({ quality: 82 }).toBuffer()),
-    upload(`${sizeName}.webp`, await resized.clone().webp({ quality: 78 }).toBuffer()),
+    upload("orig.jpg", origJpeg, "image/jpeg"),
+    upload("orig.webp", origWebp, "image/webp"),
   ]);
+
+  // 处理各个尺寸：为每个尺寸生成 JPEG 和 WebP
+  await Promise.all(
+    Object.entries(sizes).map(async ([sizeName, width]) => {
+      const resized = sharp(buf).resize({ width: Number(width) });
+
+      const [jpegBuffer, webpBuffer] = await Promise.all([
+        resized.clone().jpeg({ quality: 82 }).toBuffer(),
+        resized.clone().webp({ quality: 78 }).toBuffer(),
+      ]);
+
+      return Promise.all([
+        upload(`${sizeName}.jpg`, jpegBuffer, "image/jpeg"),
+        upload(`${sizeName}.webp`, webpBuffer, "image/webp"),
+      ]);
+    })
+  );
+
+  // 构建图片路径对象（新的多格式结构）
+  const images = {
+    orig: { jpg: `${id}/orig.jpg`, webp: `${id}/orig.webp` },
+    sm: { jpg: `${id}/sm.jpg`, webp: `${id}/sm.webp` },
+    md: { jpg: `${id}/md.jpg`, webp: `${id}/md.webp` },
+    lg: { jpg: `${id}/lg.jpg`, webp: `${id}/lg.webp` },
+  };
+
+  return { id, images };
+};
+```
+
+**存储结构：**
+```
+templates/{uuid}/
+  ├── sm.jpg + sm.webp      (80px)
+  ├── md.jpg + md.webp      (320px)
+  ├── lg.jpg + lg.webp      (640px)
+  └── orig.jpg + orig.webp  (原图)
+```
+
+**数据格式：**
+```typescript
+// types/templates.ts - 新增类型定义
+export interface ImagePaths {
+  jpg: string;
+  webp: string;
 }
+
+export interface TemplateImages {
+  sm: ImagePaths;
+  md: ImagePaths;
+  lg: ImagePaths;
+  orig: ImagePaths;
+}
+```
+
+**前端工具函数：**
+```typescript
+// utils/image-url-helper.ts - 自动选择最佳格式
+export function getImageUrlWithFallback(
+  urls: TemplatePublicUrls | undefined,
+  sizes: Array<'sm' | 'md' | 'lg' | 'orig'>,
+  preferWebP: boolean = true
+): string {
+  for (const size of sizes) {
+    const url = getImageUrl(urls, size, preferWebP);
+    if (url) return url;
+  }
+  return '';
+}
+
+// 使用示例
+const imageUrl = getImageUrlWithFallback(item.publicUrls, ['md']);
+// 自动返回 WebP（如果浏览器支持）或 JPEG
+```
+
+**向后兼容：**
+- ✅ API 自动检测新旧数据格式
+- ✅ 旧数据（只有 JPEG）继续正常工作
+- ✅ 无需迁移现有数据
+
+**测试方法：**
+```bash
+# 1. 运行数据库迁移
+psql $DATABASE_URL < supabase/migrations/20250204000000_add_webp_support.sql
+
+# 2. 启动开发服务器
+npm run dev
+
+# 3. 上传测试图片，检查 API 响应
+# 应该看到：
+# {
+#   "images": {
+#     "sm": { "jpg": "uuid/sm.jpg", "webp": "uuid/sm.webp" },
+#     ...
+#   }
+# }
+
+# 4. 检查 Supabase Storage
+# 应该有 8 个文件（4 个 JPEG + 4 个 WebP）
+
+# 5. 验证文件大小
+# WebP 应该比 JPEG 小 25-35%
 ```
 
 ---
 
-#### **任务 2.2：更新模板 API 返回多格式 URL**
-- [ ] 修改 `app/api/templates/route.ts`
-  - [ ] 更新 `publicUrls` 结构包含 WebP URL
-  - [ ] 添加格式检测逻辑
-  - [ ] 保持向后兼容性
-- [ ] 更新类型定义 `types/templates.ts`
-  - [ ] 添加 `webpUrls` 字段
-  - [ ] 更新 `Template` 接口
+#### **任务 2.2：更新模板 API 返回多格式 URL** ✅
+- [x] 修改 `app/api/templates/route.ts`
+  - [x] 更新 `publicUrls` 结构包含 WebP URL
+  - [x] 添加格式检测逻辑
+  - [x] 保持向后兼容性
+- [x] 更新类型定义 `types/templates.ts`
+  - [x] 更新 `TemplatePublicUrls` 接口（统一结构，不需要单独的 webpUrls）
+  - [x] 更新 `Template` 接口
 - [ ] 测试 API 响应
   - [ ] 验证返回正确的 URL 结构
   - [ ] 测试新旧数据兼容性
 
-**技术实现要点：**
+**技术实现要点（已完成）：**
 ```typescript
-publicUrls: {
-  sm: supabase.storage.from("templates").getPublicUrl(item.images.sm).data.publicUrl,
-  md: supabase.storage.from("templates").getPublicUrl(item.images.md).data.publicUrl,
-  lg: supabase.storage.from("templates").getPublicUrl(item.images.lg).data.publicUrl,
-  orig: supabase.storage.from("templates").getPublicUrl(item.images.orig).data.publicUrl,
-},
-webpUrls: {
-  sm: supabase.storage.from("templates").getPublicUrl(item.images.smWebp).data.publicUrl,
-  md: supabase.storage.from("templates").getPublicUrl(item.images.mdWebp).data.publicUrl,
-  lg: supabase.storage.from("templates").getPublicUrl(item.images.lgWebp).data.publicUrl,
+// app/api/templates/route.ts - 向后兼容的 URL 生成
+const getPublicUrls = (images: any) => {
+  const pub = (path: string) => supabase.storage.from("templates").getPublicUrl(path).data.publicUrl;
+
+  // 新格式：images.sm = { jpg: "path/sm.jpg", webp: "path/sm.webp" }
+  if (images.sm && typeof images.sm === 'object' && 'jpg' in images.sm) {
+    return {
+      sm: { jpg: pub(images.sm.jpg), webp: pub(images.sm.webp) },
+      md: { jpg: pub(images.md.jpg), webp: pub(images.md.webp) },
+      lg: { jpg: pub(images.lg.jpg), webp: pub(images.lg.webp) },
+      orig: { jpg: pub(images.orig.jpg), webp: pub(images.orig.webp) },
+    };
+  }
+
+  // 旧格式：images.sm = "path/sm.jpg"（向后兼容）
+  return {
+    sm: { jpg: pub(images.sm), webp: pub(images.sm) }, // 回退到 JPEG
+    md: { jpg: pub(images.md), webp: pub(images.md) },
+    lg: { jpg: pub(images.lg), webp: pub(images.lg) },
+    orig: { jpg: pub(images.orig), webp: pub(images.orig) },
+  };
+};
+
+// 应用于两种查询模式
+const items = data.map((item: any) => ({
+  ...item,
+  publicUrls: getPublicUrls(item.images),
+}));
+```
+
+**API 响应格式：**
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "publicUrls": {
+        "sm": { "jpg": "https://...sm.jpg", "webp": "https://...sm.webp" },
+        "md": { "jpg": "https://...md.jpg", "webp": "https://...md.webp" },
+        "lg": { "jpg": "https://...lg.jpg", "webp": "https://...lg.webp" },
+        "orig": { "jpg": "https://...orig.jpg", "webp": "https://...orig.webp" }
+      }
+    }
+  ]
 }
 ```
 
 ---
 
-#### **任务 2.3：前端集成 WebP 支持**
-- [ ] 更新 `app/page.tsx` 使用 WebP URL
-  - [ ] 优先使用 WebP，回退到 JPEG
-  - [ ] 使用 `<picture>` 元素或 Next.js Image 自动处理
+#### **任务 2.3：前端集成 WebP 支持** ✅
+- [x] 创建 `components/ResponsiveImage.tsx` 组件
+  - [x] 使用 `<picture>` 元素提供 WebP 和 JPEG
+  - [x] 浏览器自动选择支持的格式
+  - [x] 支持新旧两种数据格式（向后兼容）
+  - [x] Intersection Observer 懒加载
+  - [x] 骨架屏占位符
+- [x] 创建工具函数 `utils/image-url-helper.ts`
+  - [x] `getImageUrl()` - 获取单个 URL（优先 WebP）
+  - [x] `getImageUrlWithFallback()` - 多尺寸回退
+  - [x] `supportsWebP()` - 浏览器检测
+- [x] 更新 `app/page.tsx` 使用 WebP
+  - [x] 画廊使用 ResponsiveImage 组件
+  - [x] Dialog 使用 `<picture>` 元素
+  - [x] 缩略图使用工具函数
 - [ ] 测试浏览器兼容性
   - [ ] Chrome/Edge（支持 WebP）
   - [ ] Safari（支持 WebP）
@@ -1145,6 +1307,149 @@ webpUrls: {
   - [ ] 对比 JPEG vs WebP 文件大小
   - [ ] 测量页面加载时间改善
   - [ ] 使用 Lighthouse 评分
+
+**技术实现要点（已完成）：**
+
+**方案：使用 `<picture>` 元素而非 Next.js Image 组件**
+
+**原因：**
+- ❌ Next.js `<Image>` 组件通过 `/_next/image` 端点转换图片
+- ❌ 这会在服务器端重新处理图片，增加服务器负担
+- ✅ 使用 `<picture>` 元素直接提供 WebP 和 JPEG
+- ✅ 浏览器自动选择支持的格式，无需服务器处理
+
+```typescript
+// components/ResponsiveImage.tsx - 使用 <picture> 元素
+export default function ResponsiveImage({
+  publicUrls,
+  size,
+  alt,
+  width,
+  height,
+  priority = false,
+  className = "",
+}: ResponsiveImageProps) {
+  // 获取图片 URL（支持新旧格式）
+  const getImageUrls = () => {
+    if (!publicUrls || !publicUrls[size]) {
+      return { webp: '', jpg: '' };
+    }
+
+    const sizeUrls = publicUrls[size];
+
+    // 新格式：{ jpg: "url", webp: "url" }
+    if (typeof sizeUrls === 'object' && 'jpg' in sizeUrls && 'webp' in sizeUrls) {
+      return {
+        webp: sizeUrls.webp || '',
+        jpg: sizeUrls.jpg || '',
+      };
+    }
+
+    // 旧格式：直接是字符串（只有 JPEG）
+    if (typeof sizeUrls === 'string') {
+      return {
+        webp: '',
+        jpg: sizeUrls,
+      };
+    }
+
+    return { webp: '', jpg: '' };
+  };
+
+  const { webp, jpg } = getImageUrls();
+
+  return (
+    <div ref={imgRef} className="relative w-full">
+      {/* 占位符 */}
+      {!isLoaded && <Skeleton />}
+
+      {/* 只有在进入视口时才渲染图片 */}
+      {isInView && (jpg || webp) && (
+        <picture>
+          {/* WebP 格式（优先） */}
+          {webp && <source srcSet={webp} type="image/webp" />}
+
+          {/* JPEG 格式（回退） */}
+          <img
+            src={jpg}
+            alt={alt}
+            width={width}
+            height={height}
+            loading={priority ? "eager" : "lazy"}
+            onLoad={handleLoad}
+            className={className}
+          />
+        </picture>
+      )}
+    </div>
+  );
+}
+
+// app/page.tsx - 使用示例
+
+// 1. 画廊图片 - 使用 ResponsiveImage 组件
+<ResponsiveImage
+  publicUrls={item.publicUrls}
+  size="md"
+  alt={item.title || "Template"}
+  width={320}
+  height={320}
+  priority={index < 6}
+  className="w-full h-auto object-contain transition hover:scale-105"
+/>
+
+// 2. Dialog 大图 - 直接使用 <picture> 元素（支持缩放）
+<picture>
+  {webp && <source srcSet={webp} type="image/webp" />}
+  <img
+    src={jpg}
+    alt={viewingImage.title || "Template"}
+    width={1920}
+    height={1920}
+    style={{
+      transform: `scale(${zoomLevel})`,
+      transformOrigin: "center center"
+    }}
+  />
+</picture>
+
+// 3. 缩略图 - 使用工具函数
+<img
+  src={getImageUrlWithFallback(selected.publicUrls, ['sm', 'md'])}
+  alt={selected.title || "Template"}
+/>
+```
+
+**浏览器行为：**
+```html
+<!-- 浏览器看到的 HTML -->
+<picture>
+  <source srcSet="https://.../md.webp" type="image/webp">
+  <img src="https://.../md.jpg" alt="Template">
+</picture>
+
+<!-- Chrome/Firefox/Safari 14+：加载 md.webp -->
+<!-- Safari <14：加载 md.jpg -->
+```
+
+**Network 请求对比：**
+```
+旧方案（Next.js Image）：
+  /_next/image?url=...md.jpg&w=750&q=75
+  → 服务器处理 → 返回 WebP（增加服务器负担）
+
+新方案（<picture> 元素）：
+  https://.../md.webp（直接请求，无服务器处理）
+  或 https://.../md.jpg（旧浏览器）
+```
+
+**特性：**
+- ✅ 浏览器自动选择最佳格式（WebP 优先）
+- ✅ 无需服务器端处理（减少服务器负担）
+- ✅ 直接使用上传的 WebP 文件（更快）
+- ✅ 支持新旧两种数据格式（向后兼容）
+- ✅ Intersection Observer 懒加载
+- ✅ 骨架屏占位符
 
 ---
 
@@ -1477,8 +1782,217 @@ export default function RootLayout({ children }) {
 
 ---
 
-**文档版本：** v1.0
-**最后更新：** 2025-01-18
+## 🚀 **WebP 支持快速测试指南**
+
+### **步骤 1：运行数据库迁移**
+
+```bash
+# 使用 psql
+psql $DATABASE_URL < supabase/migrations/20250204000000_add_webp_support.sql
+
+# 或使用 Supabase CLI
+supabase db push
+```
+
+**预期输出：**
+```
+NOTICE:  WebP support migration completed successfully.
+COMMIT
+```
+
+---
+
+### **步骤 2：启动开发服务器**
+
+```bash
+npm run dev
+```
+
+访问：`http://localhost:3000`
+
+---
+
+### **步骤 3：上传测试图片**
+
+1. 在首页，确保你在开发环境（会显示管理员上传界面）
+2. 选择一张测试图片
+3. 填写信息：
+   - **Prompt**: "A cute cat wearing a Santa hat"
+   - **Title**: "Christmas Cat"
+   - **Theme**: "holiday"
+4. 点击 **Upload**
+
+---
+
+### **步骤 4：验证上传结果**
+
+#### 4.1 检查 API 响应
+
+打开浏览器开发者工具 → Network 标签，查看 `/api/templates/upload` 响应：
+
+```json
+{
+  "items": [
+    {
+      "id": "abc-123-uuid",
+      "images": {
+        "sm": { "jpg": "abc-123-uuid/sm.jpg", "webp": "abc-123-uuid/sm.webp" },
+        "md": { "jpg": "abc-123-uuid/md.jpg", "webp": "abc-123-uuid/md.webp" },
+        "lg": { "jpg": "abc-123-uuid/lg.jpg", "webp": "abc-123-uuid/lg.webp" },
+        "orig": { "jpg": "abc-123-uuid/orig.jpg", "webp": "abc-123-uuid/orig.webp" }
+      }
+    }
+  ]
+}
+```
+
+✅ **成功标志：** 每个尺寸都有 `jpg` 和 `webp` 两个路径
+
+---
+
+#### 4.2 检查 Supabase Storage
+
+1. 登录 [Supabase Dashboard](https://app.supabase.com)
+2. 进入你的项目
+3. 左侧菜单 → **Storage** → **templates** bucket
+4. 找到新上传的文件夹（UUID）
+
+**应该看到 8 个文件：**
+```
+abc-123-uuid/
+  ├── sm.jpg      (~5 KB)
+  ├── sm.webp     (~3 KB)  ← 比 JPEG 小 40%
+  ├── md.jpg      (~25 KB)
+  ├── md.webp     (~16 KB) ← 比 JPEG 小 36%
+  ├── lg.jpg      (~80 KB)
+  ├── lg.webp     (~52 KB) ← 比 JPEG 小 35%
+  ├── orig.jpg    (~200 KB)
+  └── orig.webp   (~130 KB) ← 比 JPEG 小 35%
+```
+
+✅ **成功标志：** WebP 文件比 JPEG 小 25-40%
+
+---
+
+### **步骤 5：验证前端显示**
+
+#### 5.1 刷新首页
+
+刷新 `http://localhost:3000`，等待模板加载。
+
+#### 5.2 检查图片加载
+
+打开开发者工具 → Network 标签 → 筛选 `Img` 类型：
+
+**Chrome/Firefox/Safari 14+：**
+```
+✅ 应该看到直接加载 .webp 文件
+   例如：https://...supabase.co/storage/v1/object/public/templates/abc-123-uuid/md.webp
+
+❌ 不应该看到 /_next/image 请求（我们不使用 Next.js Image 优化）
+```
+
+**Safari <14 或旧版浏览器：**
+```
+✅ 应该看到加载 .jpg 文件（回退）
+   例如：https://...supabase.co/storage/v1/object/public/templates/abc-123-uuid/md.jpg
+```
+
+**验证方法：**
+1. 打开 Network 标签
+2. 刷新页面
+3. 查看图片请求的 URL
+4. 确认：
+   - ✅ 直接请求 Supabase Storage URL
+   - ✅ 文件扩展名是 `.webp`（支持的浏览器）或 `.jpg`（旧浏览器）
+   - ❌ 没有 `/_next/image` 请求
+
+---
+
+### **步骤 6：性能对比**
+
+#### 6.1 使用 Network 面板
+
+1. 打开 Network 标签
+2. 勾选 **Disable cache**
+3. 刷新页面
+4. 查看 **Transferred** 列
+
+**对比：**
+- **JPEG 总大小：** ~500 KB（假设 20 张图片）
+- **WebP 总大小：** ~325 KB（节省 35%）
+
+#### 6.2 使用 Lighthouse
+
+1. 打开 Chrome DevTools
+2. 切换到 **Lighthouse** 标签
+3. 选择 **Performance** 类别
+4. 点击 **Analyze page load**
+
+**预期改善：**
+- **LCP (Largest Contentful Paint)：** 减少 0.5-1 秒
+- **Performance Score：** 提升 5-10 分
+
+---
+
+### **常见问题快速修复**
+
+#### ❌ 上传后只有 JPEG，没有 WebP
+
+**原因：** Sharp 未正确安装
+
+**修复：**
+```bash
+npm install sharp --save
+npm run dev
+```
+
+---
+
+#### ❌ 前端显示 JPEG 而不是 WebP
+
+**原因：** 浏览器不支持 WebP
+
+**检查：**
+```javascript
+// 在浏览器控制台运行
+document.createElement('canvas').toDataURL('image/webp').indexOf('data:image/webp') === 0
+// 返回 true = 支持 WebP
+// 返回 false = 不支持（会回退到 JPEG）
+```
+
+---
+
+#### ❌ 构建失败
+
+**修复：**
+```bash
+# 检查类型错误
+npm run build
+
+# 如果有错误，检查：
+# 1. types/templates.ts 是否正确更新
+# 2. app/page.tsx 是否导入了 getImageUrlWithFallback
+# 3. 所有 publicUrls 访问是否使用了辅助函数
+```
+
+---
+
+### **成功检查清单**
+
+- [ ] 数据库迁移成功（无错误）
+- [ ] 上传 API 返回新格式（jpg + webp）
+- [ ] Supabase Storage 中有 8 个文件
+- [ ] WebP 文件比 JPEG 小 25-40%
+- [ ] 前端加载 WebP 文件（支持的浏览器）
+- [ ] 旧浏览器回退到 JPEG
+- [ ] 无控制台错误
+- [ ] 构建成功（`npm run build`）
+
+---
+
+**文档版本：** v1.1
+**最后更新：** 2025-02-04
 **负责人：** 前端性能优化团队
 
 

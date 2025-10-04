@@ -58,23 +58,43 @@ export async function GET(req: Request) {
 
       if (error) throw error;
 
-      const items = data.map((item: any) => ({
-        id: item.id,
-        prompt_id: item.prompt_id,
-        title: item.title,
-        images: item.images,
-        usage: item.usage,
-        created_at: item.created_at,
-        prompt: item.prompt,
-        theme: item.prompt?.theme || null,
-        promptText: item.prompt?.prompt || "",
-        publicUrls: {
-          sm: supabase.storage.from("templates").getPublicUrl(item.images.sm).data.publicUrl,
-          md: supabase.storage.from("templates").getPublicUrl(item.images.md).data.publicUrl,
-          lg: supabase.storage.from("templates").getPublicUrl(item.images.lg).data.publicUrl,
-          orig: supabase.storage.from("templates").getPublicUrl(item.images.orig).data.publicUrl,
-        },
-      }));
+      const items = data.map((item: any) => {
+        // 辅助函数：生成公共 URL（支持新旧两种数据格式）
+        const getPublicUrls = (images: any) => {
+          const pub = (path: string) => supabase.storage.from("templates").getPublicUrl(path).data.publicUrl;
+
+          // 新格式：images.sm = { jpg: "path/sm.jpg", webp: "path/sm.webp" }
+          if (images.sm && typeof images.sm === 'object' && 'jpg' in images.sm) {
+            return {
+              sm: { jpg: pub(images.sm.jpg), webp: pub(images.sm.webp) },
+              md: { jpg: pub(images.md.jpg), webp: pub(images.md.webp) },
+              lg: { jpg: pub(images.lg.jpg), webp: pub(images.lg.webp) },
+              orig: { jpg: pub(images.orig.jpg), webp: pub(images.orig.webp) },
+            };
+          }
+
+          // 旧格式：images.sm = "path/sm.jpg"（向后兼容）
+          return {
+            sm: { jpg: pub(images.sm), webp: pub(images.sm) }, // 回退到 JPEG
+            md: { jpg: pub(images.md), webp: pub(images.md) },
+            lg: { jpg: pub(images.lg), webp: pub(images.lg) },
+            orig: { jpg: pub(images.orig), webp: pub(images.orig) },
+          };
+        };
+
+        return {
+          id: item.id,
+          prompt_id: item.prompt_id,
+          title: item.title,
+          images: item.images,
+          usage: item.usage,
+          created_at: item.created_at,
+          prompt: item.prompt,
+          theme: item.prompt?.theme || null,
+          promptText: item.prompt?.prompt || "",
+          publicUrls: getPublicUrls(item.images),
+        };
+      });
 
       return NextResponse.json({ items, count: items.length, page, limit, total: items.length });
     }
@@ -95,6 +115,29 @@ export async function GET(req: Request) {
 
     const totalPrompts = allPrompts.length;
     const paginatedPrompts = allPrompts.slice(offset, offset + limit);
+
+    // 辅助函数：生成公共 URL（支持新旧两种数据格式）
+    const getPublicUrls = (images: any) => {
+      const pub = (path: string) => supabase.storage.from("templates").getPublicUrl(path).data.publicUrl;
+
+      // 新格式：images.sm = { jpg: "path/sm.jpg", webp: "path/sm.webp" }
+      if (images.sm && typeof images.sm === 'object' && 'jpg' in images.sm) {
+        return {
+          sm: { jpg: pub(images.sm.jpg), webp: pub(images.sm.webp) },
+          md: { jpg: pub(images.md.jpg), webp: pub(images.md.webp) },
+          lg: { jpg: pub(images.lg.jpg), webp: pub(images.lg.webp) },
+          orig: { jpg: pub(images.orig.jpg), webp: pub(images.orig.webp) },
+        };
+      }
+
+      // 旧格式：images.sm = "path/sm.jpg"（向后兼容）
+      return {
+        sm: { jpg: pub(images.sm), webp: pub(images.sm) }, // 回退到 JPEG
+        md: { jpg: pub(images.md), webp: pub(images.md) },
+        lg: { jpg: pub(images.lg), webp: pub(images.lg) },
+        orig: { jpg: pub(images.orig), webp: pub(images.orig) },
+      };
+    };
 
     // Step 2: For each prompt, get the template with highest usage
     const representatives = await Promise.all(
@@ -127,12 +170,7 @@ export async function GET(req: Request) {
           prompt: prompt,
           theme: prompt.theme,
           promptText: prompt.prompt,
-          publicUrls: {
-            sm: supabase.storage.from("templates").getPublicUrl(data.images.sm).data.publicUrl,
-            md: supabase.storage.from("templates").getPublicUrl(data.images.md).data.publicUrl,
-            lg: supabase.storage.from("templates").getPublicUrl(data.images.lg).data.publicUrl,
-            orig: supabase.storage.from("templates").getPublicUrl(data.images.orig).data.publicUrl,
-          },
+          publicUrls: getPublicUrls(data.images),
         };
       })
     );

@@ -1,15 +1,26 @@
-export interface TemplateImages {
-  sm: string;
-  md: string;
-  lg: string;
-  orig: string;
+// 图片格式类型
+export type ImageFormat = 'jpg' | 'webp';
+
+// 单个尺寸的多格式路径
+export interface ImagePaths {
+  jpg: string;
+  webp: string;
 }
 
+// 模板图片存储路径（数据库中的 images 字段）
+export interface TemplateImages {
+  sm: ImagePaths;
+  md: ImagePaths;
+  lg: ImagePaths;
+  orig: ImagePaths;
+}
+
+// 模板图片公共 URL（API 返回给前端）
 export interface TemplatePublicUrls {
-  sm: string;
-  md: string;
-  lg: string;
-  orig: string;
+  sm: ImagePaths;
+  md: ImagePaths;
+  lg: ImagePaths;
+  orig: ImagePaths;
 }
 
 // New: Prompt interface for the normalized prompts table
