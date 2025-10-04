@@ -98,6 +98,8 @@ export default function HomePage() {
   // Dialog image loading state and error handling
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [imageRetryCount, setImageRetryCount] = useState(0);
+  const imageRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -224,6 +226,12 @@ export default function HomePage() {
     setZoomLevel(1); // Reset zoom when opening
     setImageLoading(true); // Reset loading state
     setImageError(false); // Reset error state
+    setImageRetryCount(0); // Reset retry count
+    // Clear any pending retry timeout
+    if (imageRetryTimeoutRef.current) {
+      clearTimeout(imageRetryTimeoutRef.current);
+      imageRetryTimeoutRef.current = null;
+    }
   };
 
   // Zoom controls
@@ -253,6 +261,12 @@ export default function HomePage() {
       setZoomLevel(1); // Reset zoom when changing image
       setImageLoading(true); // Reset loading state
       setImageError(false); // Reset error state
+      setImageRetryCount(0); // Reset retry count
+      // Clear any pending retry timeout
+      if (imageRetryTimeoutRef.current) {
+        clearTimeout(imageRetryTimeoutRef.current);
+        imageRetryTimeoutRef.current = null;
+      }
     }
   };
 
@@ -269,6 +283,12 @@ export default function HomePage() {
       setZoomLevel(1); // Reset zoom when changing image
       setImageLoading(true); // Reset loading state
       setImageError(false); // Reset error state
+      setImageRetryCount(0); // Reset retry count
+      // Clear any pending retry timeout
+      if (imageRetryTimeoutRef.current) {
+        clearTimeout(imageRetryTimeoutRef.current);
+        imageRetryTimeoutRef.current = null;
+      }
     }
   };
 
@@ -325,6 +345,15 @@ export default function HomePage() {
       });
     };
   }, [viewingImage, displayedTemplates]);
+
+  // Cleanup retry timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (imageRetryTimeoutRef.current) {
+        clearTimeout(imageRetryTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -780,13 +809,24 @@ export default function HomePage() {
                                   <div className="flex flex-col items-center justify-center gap-4 p-8 min-h-[400px]">
                                     <div className="text-white text-center space-y-2">
                                       <p className="text-lg font-medium">图片加载失败</p>
-                                      <p className="text-sm text-white/70">请检查网络连接或稍后重试</p>
+                                      <p className="text-sm text-white/70">
+                                        {imageRetryCount > 0
+                                          ? `已重试 ${imageRetryCount} 次，请检查网络连接或稍后重试`
+                                          : '请检查网络连接或稍后重试'
+                                        }
+                                      </p>
                                     </div>
                                     <Button
                                       onClick={() => {
+                                        console.log('[Dialog] Manual retry triggered');
                                         setImageError(false);
                                         setImageLoading(true);
-                                        // Force re-render by updating a key or state
+                                        setImageRetryCount(0);
+                                        // Clear any pending retry timeout
+                                        if (imageRetryTimeoutRef.current) {
+                                          clearTimeout(imageRetryTimeoutRef.current);
+                                          imageRetryTimeoutRef.current = null;
+                                        }
                                       }}
                                       className="bg-white/20 hover:bg-white/30 text-white border-white/20"
                                     >
@@ -822,21 +862,44 @@ export default function HomePage() {
 
                                     const { webp, jpg } = getImageUrls();
 
+                                    const handleImageError = () => {
+                                      console.error(`[Dialog] Image load error, retry count: ${imageRetryCount}`);
+
+                                      const maxRetries = 3;
+
+                                      // 如果还有重试次数，自动重试（指数退避）
+                                      if (imageRetryCount < maxRetries) {
+                                        const delay = 1000 * Math.pow(2, imageRetryCount); // 1s, 2s, 4s
+                                        console.log(`[Dialog] Retrying in ${delay}ms...`);
+
+                                        imageRetryTimeoutRef.current = setTimeout(() => {
+                                          setImageRetryCount(prev => prev + 1);
+                                          setImageLoading(true);
+                                          setImageError(false);
+                                        }, delay);
+                                      } else {
+                                        // 重试次数用尽，显示错误状态
+                                        console.error(`[Dialog] Max retries (${maxRetries}) reached`);
+                                        setImageLoading(false);
+                                        setImageError(true);
+                                      }
+                                    };
+
                                     return (
-                                      <picture>
-                                        {webp && <source srcSet={webp} type="image/webp" />}
+                                      <picture key={imageRetryCount}>
+                                        {webp && <source srcSet={`${webp}?retry=${imageRetryCount}`} type="image/webp" />}
                                         <img
-                                          src={jpg}
+                                          src={`${jpg}?retry=${imageRetryCount}`}
                                           alt={viewingImage.title || "Template"}
                                           width={1920}
                                           height={1920}
                                           loading="eager"
                                           crossOrigin="anonymous"
-                                          onLoad={() => setImageLoading(false)}
-                                          onError={() => {
+                                          onLoad={() => {
                                             setImageLoading(false);
-                                            setImageError(true);
+                                            setImageError(false);
                                           }}
+                                          onError={handleImageError}
                                           className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-all duration-300"
                                           style={{
                                             transform: `scale(${zoomLevel})`,

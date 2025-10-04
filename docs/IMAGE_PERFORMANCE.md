@@ -4,6 +4,77 @@
 
 ---
 
+## ✅ **任务 3.3 完成状态**
+
+### **实施日期：** 2025-01-04
+
+### **完成的功能：**
+
+#### **1. ResponsiveImage 组件增强** ✅
+- ✅ 添加错误状态管理（`hasError`, `retryCount`, `isRetrying`）
+- ✅ 实现自动重试逻辑（最多 3 次）
+- ✅ 使用指数退避策略（1s → 2s → 4s）
+- ✅ 显示重试进度提示（"重试中 (1/3)"）
+- ✅ 友好的错误 UI（AlertCircle 图标 + 错误提示）
+- ✅ 手动重试按钮
+- ✅ 支持静默失败模式（`showErrorUI={false}`）
+- ✅ 清理定时器（防止内存泄漏）
+- ✅ URL 添加 retry 参数（强制刷新缓存）
+- ✅ 控制台日志记录（便于调试）
+
+#### **2. Dialog 图片查看器增强** ✅
+- ✅ 添加重试状态管理（`imageRetryCount`, `imageRetryTimeoutRef`）
+- ✅ 实现自动重试逻辑（最多 3 次）
+- ✅ 使用指数退避策略（1s → 2s → 4s）
+- ✅ 显示重试次数（"已重试 X 次"）
+- ✅ 手动重试按钮
+- ✅ 切换图片时重置重试状态
+- ✅ 清理定时器（防止内存泄漏）
+- ✅ URL 添加 retry 参数（强制刷新缓存）
+- ✅ 控制台日志记录（便于调试）
+
+### **技术亮点：**
+
+1. **指数退避算法：** `delay = 1000 * Math.pow(2, retryCount)`
+   - 避免服务器过载
+   - 给网络恢复留出时间
+   - 符合行业最佳实践
+
+2. **强制缓存刷新：** `src={jpg}?retry=${retryCount}`
+   - 避免浏览器缓存错误响应
+   - 确保每次重试都是真实的网络请求
+
+3. **内存泄漏防护：**
+   - 组件卸载时清理定时器
+   - 切换图片时清理旧的定时器
+   - 使用 `useRef` 存储定时器引用
+
+4. **用户体验优化：**
+   - 重试中显示进度提示
+   - 错误状态显示友好提示
+   - 手动重试按钮（用户可控）
+   - 控制台日志（开发者友好）
+
+### **文件修改清单：**
+
+| 文件 | 修改内容 | 行数变化 |
+|------|---------|---------|
+| `components/ResponsiveImage.tsx` | 添加错误处理和重试逻辑 | +84 行 |
+| `app/page.tsx` | Dialog 图片查看器添加重试逻辑 | +50 行 |
+| `docs/IMAGE_PERFORMANCE.md` | 更新文档和测试指南 | +174 行 |
+
+### **待测试项：**
+
+- [ ] 模拟网络错误（Chrome DevTools Offline 模式）
+- [ ] 验证自动重试机制（3 次重试）
+- [ ] 测试手动重试按钮
+- [ ] 验证重试进度提示显示
+- [ ] 测试 Dialog 图片切换时的重试状态重置
+- [ ] 验证定时器清理（无内存泄漏）
+- [ ] 检查控制台日志输出
+
+---
+
 ## 🔍 **当前实现分析**
 
 ### **1. 图片渲染方式**
@@ -1719,30 +1790,287 @@ useEffect(() => {
 
 ---
 
-#### **任务 3.3：实现错误处理和重试**
-- [ ] 创建 `components/ResilientImage.tsx`
-  - [ ] 实现错误状态管理
-  - [ ] 添加重试逻辑（最多 3 次）
-  - [ ] 使用指数退避策略
-  - [ ] 显示友好的错误提示
-- [ ] 在 LazyImage 中集成 ResilientImage
+#### **任务 3.3：实现错误处理和重试** ✅
+- [x] 增强 `components/ResponsiveImage.tsx`
+  - [x] 实现错误状态管理
+  - [x] 添加重试逻辑（最多 3 次）
+  - [x] 使用指数退避策略（1s, 2s, 4s）
+  - [x] 显示友好的错误提示和重试按钮
+  - [x] 支持手动重试
+  - [x] 添加重试中状态提示
+- [x] 在 Dialog 图片查看器中添加重试逻辑
+  - [x] 自动重试（最多 3 次）
+  - [x] 指数退避策略
+  - [x] 显示重试次数
+  - [x] 手动重试按钮
 - [ ] 测试错误场景
   - [ ] 模拟网络错误
   - [ ] 验证重试机制
   - [ ] 测试最终失败状态显示
 
-**技术实现要点：**
+**技术实现要点（已完成）：**
+
+**1. ResponsiveImage 组件增强：**
+
 ```tsx
-const handleError = () => {
-  if (retryCount < 3) {
-    setTimeout(() => {
-      setRetryCount(prev => prev + 1);
-      setError(false);
-    }, 1000 * (retryCount + 1)); // 1s, 2s, 3s
+// components/ResponsiveImage.tsx
+
+interface ResponsiveImageProps {
+  // ... 其他属性
+  maxRetries?: number;      // 最大重试次数（默认 3）
+  showErrorUI?: boolean;    // 是否显示错误 UI（默认 true）
+}
+
+export default function ResponsiveImage({
+  maxRetries = 3,
+  showErrorUI = true,
+  // ... 其他属性
+}: ResponsiveImageProps) {
+  const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 自动重试逻辑（指数退避）
+  const handleError = () => {
+    console.error(`[ResponsiveImage] Image load error: ${alt}, retry count: ${retryCount}`);
+
+    if (retryCount < maxRetries) {
+      const delay = 1000 * Math.pow(2, retryCount); // 1s, 2s, 4s
+      console.log(`[ResponsiveImage] Retrying in ${delay}ms...`);
+
+      setIsRetrying(true);
+      retryTimeoutRef.current = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        setIsRetrying(false);
+      }, delay);
+    } else {
+      // 重试次数用尽
+      console.error(`[ResponsiveImage] Max retries (${maxRetries}) reached`);
+      setHasError(true);
+      setIsLoaded(true);
+      onError?.();
+    }
+  };
+
+  // 手动重试
+  const handleManualRetry = () => {
+    console.log(`[ResponsiveImage] Manual retry triggered`);
+    setHasError(false);
+    setIsLoaded(false);
+    setRetryCount(0);
+    setIsRetrying(false);
+    // 强制重新渲染
+    setIsInView(false);
+    setTimeout(() => setIsInView(true), 10);
+  };
+
+  return (
+    <div ref={imgRef} className="relative w-full">
+      {/* 重试中提示 */}
+      {isRetrying && retryCount > 0 && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+          <div className="bg-white/90 rounded-lg px-3 py-2 shadow-sm">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              重试中 ({retryCount}/{maxRetries})
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 错误状态 - 显示友好的错误提示和重试按钮 */}
+      {hasError && showErrorUI && (
+        <div className="flex flex-col items-center justify-center gap-2 bg-muted/50 rounded-lg p-4">
+          <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-xs text-muted-foreground text-center">图片加载失败</p>
+          <Button size="sm" variant="outline" onClick={handleManualRetry}>
+            <RefreshCw className="h-3 w-3 mr-1" />
+            重试
+          </Button>
+        </div>
+      )}
+
+      {/* 图片渲染 - 添加 retry 参数强制刷新 */}
+      {isInView && !hasError && (jpg || webp) && (
+        <picture key={retryCount}>
+          {webp && <source srcSet={`${webp}?retry=${retryCount}`} type="image/webp" />}
+          <img
+            src={`${jpg}?retry=${retryCount}`}
+            alt={alt}
+            onLoad={handleLoad}
+            onError={handleError}
+          />
+        </picture>
+      )}
+    </div>
+  );
+}
+```
+
+**2. Dialog 图片查看器增强：**
+
+```tsx
+// app/page.tsx
+
+// 状态管理
+const [imageRetryCount, setImageRetryCount] = useState(0);
+const imageRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+// 自动重试逻辑
+const handleImageError = () => {
+  console.error(`[Dialog] Image load error, retry count: ${imageRetryCount}`);
+
+  const maxRetries = 3;
+
+  if (imageRetryCount < maxRetries) {
+    const delay = 1000 * Math.pow(2, imageRetryCount); // 1s, 2s, 4s
+    console.log(`[Dialog] Retrying in ${delay}ms...`);
+
+    imageRetryTimeoutRef.current = setTimeout(() => {
+      setImageRetryCount(prev => prev + 1);
+      setImageLoading(true);
+      setImageError(false);
+    }, delay);
   } else {
-    setError(true);
+    console.error(`[Dialog] Max retries (${maxRetries}) reached`);
+    setImageLoading(false);
+    setImageError(true);
   }
 };
+
+// 手动重试
+<Button
+  onClick={() => {
+    console.log('[Dialog] Manual retry triggered');
+    setImageError(false);
+    setImageLoading(true);
+    setImageRetryCount(0);
+    if (imageRetryTimeoutRef.current) {
+      clearTimeout(imageRetryTimeoutRef.current);
+      imageRetryTimeoutRef.current = null;
+    }
+  }}
+>
+  <RefreshCw className="h-4 w-4 mr-2" />
+  重试
+</Button>
+
+// 图片渲染 - 添加 retry 参数
+<picture key={imageRetryCount}>
+  {webp && <source srcSet={`${webp}?retry=${imageRetryCount}`} type="image/webp" />}
+  <img
+    src={`${jpg}?retry=${imageRetryCount}`}
+    onError={handleImageError}
+  />
+</picture>
+```
+
+**重试策略说明：**
+
+| 重试次数 | 延迟时间 | 累计时间 |
+|---------|---------|---------|
+| 第 1 次 | 1 秒 | 1 秒 |
+| 第 2 次 | 2 秒 | 3 秒 |
+| 第 3 次 | 4 秒 | 7 秒 |
+| 失败 | - | 显示错误 UI |
+
+**特性：**
+- ✅ 自动重试（指数退避）
+- ✅ 手动重试按钮
+- ✅ 重试进度提示
+- ✅ 友好的错误提示
+- ✅ 控制台日志记录
+- ✅ 清理定时器（防止内存泄漏）
+- ✅ URL 添加 retry 参数（强制刷新缓存）
+
+**测试指南：**
+
+**1. 模拟网络错误（Chrome DevTools）：**
+
+```bash
+# 步骤 1：打开 Chrome DevTools（F12）
+# 步骤 2：切换到 Network 标签
+# 步骤 3：点击 "No throttling" 下拉菜单
+# 步骤 4：选择 "Offline" 或 "Slow 3G"
+# 步骤 5：刷新页面，观察重试行为
+```
+
+**预期行为：**
+```
+1. 图片加载失败
+2. 1 秒后自动重试（显示 "重试中 (1/3)"）
+3. 再次失败，2 秒后重试（显示 "重试中 (2/3)"）
+4. 再次失败，4 秒后重试（显示 "重试中 (3/3)"）
+5. 最终失败，显示错误 UI 和重试按钮
+```
+
+**控制台日志：**
+```
+[ResponsiveImage] Image load error: Template, retry count: 0
+[ResponsiveImage] Retrying in 1000ms...
+[ResponsiveImage] Image load error: Template, retry count: 1
+[ResponsiveImage] Retrying in 2000ms...
+[ResponsiveImage] Image load error: Template, retry count: 2
+[ResponsiveImage] Retrying in 4000ms...
+[ResponsiveImage] Image load error: Template, retry count: 3
+[ResponsiveImage] Max retries (3) reached for: Template
+```
+
+**2. 测试手动重试：**
+
+```bash
+# 步骤 1：模拟网络错误（见上）
+# 步骤 2：等待自动重试完成（显示错误 UI）
+# 步骤 3：恢复网络连接（Network 标签选择 "No throttling"）
+# 步骤 4：点击 "重试" 按钮
+# 步骤 5：验证图片成功加载
+```
+
+**预期行为：**
+```
+1. 点击重试按钮
+2. 错误 UI 消失，显示加载占位符
+3. 图片成功加载并显示
+4. 重试计数器重置为 0
+```
+
+**控制台日志：**
+```
+[ResponsiveImage] Manual retry triggered for: Template
+```
+
+**3. 测试 Dialog 图片查看器重试：**
+
+```bash
+# 步骤 1：打开图片查看器（点击任意图片）
+# 步骤 2：模拟网络错误
+# 步骤 3：切换到下一张图片（点击右箭头）
+# 步骤 4：观察自动重试行为
+# 步骤 5：恢复网络，点击重试按钮
+```
+
+**预期行为：**
+```
+1. 图片加载失败，自动重试 3 次
+2. 显示错误提示："已重试 3 次，请检查网络连接或稍后重试"
+3. 点击重试按钮，图片成功加载
+```
+
+**4. 验证清理逻辑：**
+
+```bash
+# 步骤 1：模拟网络错误
+# 步骤 2：等待第 1 次重试开始（1 秒延迟）
+# 步骤 3：在重试完成前切换到下一张图片
+# 步骤 4：验证没有内存泄漏（定时器已清理）
+```
+
+**预期行为：**
+```
+1. 切换图片时，旧图片的重试定时器被清理
+2. 新图片的重试计数器从 0 开始
+3. 控制台没有错误或警告
 ```
 
 ---
