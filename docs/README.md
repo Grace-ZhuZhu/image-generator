@@ -27,10 +27,36 @@
 ### [QUICK_START.md](./QUICK_START.md)
 **快速开始指南** - 项目的快速启动和配置说明
 
+**内容包括：**
+- 🎨 Templates 功能快速开始
+- 🖼️ 图片生成功能快速开始（Doubao SeedDream 4.0）
+- 📊 功能验证方法
+- 🐛 常见问题解答
+
 ### [DATABASE_CLEANUP_GUIDE.md](./DATABASE_CLEANUP_GUIDE.md)
 **数据库清理指南** - 数据库维护和清理操作说明
 
 ## 最新更新
+
+### 2025-10-14 - 图片生成功能
+
+新增管理员图片生成功能，使用 Doubao SeedDream 4.0 API。
+
+**主要功能：**
+- ✨ 在 `/admin/templates` 页面添加 "Generate" 标签页
+- ✨ 支持中英文提示词输入（300 中文字符 / 600 英文单词）
+- ✨ 实时字符计数和验证
+- ✨ 图片生成和预览
+- ✨ 一键下载功能
+- 🔒 仅开发模式可用
+
+**技术实现：**
+- 前端：React + Tabs 组件
+- 后端：Next.js API Route
+- API：Doubao SeedDream 4.0
+- 参数：1K 分辨率，无水印
+
+**详细说明：** 参见 [QUICK_START.md](./QUICK_START.md) 的"图片生成功能快速开始"部分
 
 ### 2025-10-02 - Checkbox 选择交互
 
@@ -101,6 +127,9 @@ docs/
 **项目如何快速启动？**
 → 查看 [QUICK_START.md](./QUICK_START.md)
 
+**如何使用图片生成功能？**
+→ 查看 [QUICK_START.md](./QUICK_START.md) 的"图片生成功能快速开始"部分
+
 **如何清理数据库？**
 → 查看 [DATABASE_CLEANUP_GUIDE.md](./DATABASE_CLEANUP_GUIDE.md)
 
@@ -134,6 +163,7 @@ docs/
 
 | 日期 | 版本 | 主要变更 |
 |------|------|---------|
+| 2025-10-14 | v2.2 | 图片生成功能（Doubao SeedDream 4.0） |
 | 2025-10-02 | v2.1 | Checkbox 选择交互 |
 | 2025-10-02 | v2.0 | 新的三层展示逻辑 |
 | 2025-01-30 | v1.1 | 规范化数据库架构 |
@@ -149,6 +179,6 @@ docs/
 
 ---
 
-**最后更新：** 2025-10-02  
+**最后更新：** 2025-10-14
 **维护者：** Development Team
 

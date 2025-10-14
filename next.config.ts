@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
         hostname: '**.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      // 允许从 Doubao/Volcengine 加载生成的图片
+      {
+        protocol: 'https',
+        hostname: '**.tos-cn-beijing.volces.com',
+        pathname: '/**',
+      },
     ],
     // 优先使用的图片格式（按优先级排序）
     formats: ['image/avif', 'image/webp'],

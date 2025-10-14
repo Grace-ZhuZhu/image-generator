@@ -1,6 +1,15 @@
-# Templates Feature - Quick Start Guide
+# Quick Start Guide
 
-## 🚀 快速开始
+## 📋 目录
+
+- [Templates 功能快速开始](#-templates-功能快速开始)
+- [图片生成功能快速开始](#-图片生成功能快速开始)
+- [验证功能](#-验证功能)
+- [常见问题](#-常见问题)
+
+---
+
+## 🎨 Templates 功能快速开始
 
 ### 1. 运行数据库迁移
 
@@ -223,6 +232,134 @@ npx tsx scripts/test-templates-api.ts
 - 用户选择 pet 和 breed 后会自动替换
 - 每次选择模板会自动增加 usage 计数
 - 代表图始终显示 usage 最高的模板
+
+---
+
+## 🖼️ 图片生成功能快速开始
+
+### 功能概述
+
+管理员可以在 `/admin/templates` 页面使用 Doubao SeedDream 4.0 API 生成图片。
+
+### 1. 配置 API Key
+
+确保 `.env` 文件中配置了 API Key：
+
+```bash
+# AI Configuration for Image Generation
+ARK_API_KEY=your-api-key-here
+```
+
+### 2. 访问生成页面
+
+在开发模式下访问：
+
+```
+http://localhost:3000/admin/templates
+```
+
+点击 **"Generate"** 标签页。
+
+### 3. 生成图片
+
+1. **输入提示词**：在文本框中输入图片生成提示词
+   - 支持中英文
+   - 建议不超过 300 个中文字符或 600 个英文单词
+   - 实时显示字符计数
+
+2. **点击生成**：点击 "Generate Image" 按钮
+   - 等待生成完成（显示加载动画）
+   - 生成的图片会自动显示
+
+3. **下载图片**：
+   - 点击 "Download Image" 按钮下载
+   - 或点击下方链接在新标签页打开
+   - 图片文件名格式：`generated-{timestamp}.jpg`
+
+### API 参数配置
+
+生成图片时使用以下参数：
+
+```json
+{
+  "model": "doubao-seedream-4-0-250828",
+  "prompt": "<用户输入的提示词>",
+  "size": "1K",
+  "response_format": "url",
+  "watermark": false,
+  "stream": false,
+  "sequential_image_generation": "disabled"
+}
+```
+
+### 提示词示例
+
+**中文示例**：
+```
+一只可爱的小猫在花园里玩耍，阳光明媚，色彩鲜艳，高清摄影
+```
+
+**英文示例**：
+```
+A cute cat playing in a garden, bright sunlight, vibrant colors, high-quality photography
+```
+
+**详细描述示例**：
+```
+星际穿越，黑洞，黑洞里冲出一辆快支离破碎的复古列车，抢视觉冲击力，电影大片，末日既视感，动感，对比色，oc渲染，光线追踪，动态模糊，景深，超现实主义
+```
+
+### 重要提示
+
+⚠️ **图片 URL 有效期**：生成的图片 URL 仅在 24 小时内有效，请及时下载保存。
+
+⚠️ **字符限制**：
+- 中文字符：最多 300 个
+- 英文单词：最多 600 个
+- 超出限制时会显示红色警告，无法生成
+
+⚠️ **开发模式限制**：此功能仅在开发模式下可用（`NODE_ENV=development`）
+
+### 故障排除
+
+**问题：图片无法显示**
+- 检查浏览器控制台是否有错误
+- 确认图片 URL 是否有效（未过期）
+- 尝试点击链接在新标签页打开
+
+**问题：下载失败**
+- 点击下方的蓝色链接在新标签页打开图片
+- 在新标签页中右键保存图片
+- 检查浏览器的下载设置
+
+**问题：API 错误**
+- 检查 `.env` 中的 `ARK_API_KEY` 是否正确
+- 查看服务器日志获取详细错误信息
+- 确认 API 配额是否充足
+
+**问题：字符计数不准确**
+- 刷新页面重试
+- 检查浏览器控制台是否有 JavaScript 错误
+
+### 技术细节
+
+**字符计数逻辑**：
+- 中文字符使用正则 `/[\u4e00-\u9fa5]/g` 匹配
+- 英文单词通过空格分割计数
+- 同时显示总字符数、中文字符数、英文单词数
+
+**下载实现**：
+- 使用 `<a>` 标签的 `download` 属性
+- 设置 `target="_blank"` 在新标签页打开
+- 避免 CORS 问题
+
+**API 调用流程**：
+1. 前端验证提示词（字符限制）
+2. 发送 POST 请求到 `/api/admin/generate`
+3. 后端验证权限（开发模式检查）
+4. 调用 Doubao SeedDream 4.0 API
+5. 返回图片 URL 给前端
+6. 前端显示图片和下载按钮
 
 ---
 
