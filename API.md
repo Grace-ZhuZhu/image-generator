@@ -128,14 +128,13 @@ POST https://ark.cn-beijing.volces.com/api/v3/images/generations [运行](https:
 请求体
 
 model string 必选
-本次请求使用模型的 [Model ID](https://www.volcengine.com/docs/82379/1513689) 或[推理接入点](https://www.volcengine.com/docs/82379/1099522) (Endpoint ID)。​
+本次请求使用模型的 Model ID: doubao-seedream-4-0-250828
 
 prompt string 必选
 用于生成图像的提示词，支持中英文。
 建议不超过300个汉字或600个英文单词。字数过多信息容易分散，模型可能因此忽略细节，只关注重点，造成图片缺失部分元素。
 
 image string/array 可选
-仅 doubao-seedream-4.0、doubao-seededit-3.0-i2i 支持该参数
 
 输入的图片信息，支持 URL 或 Base64 编码。其中，doubao-seedream-4.0 支持单图或多图输入（[查看多图融合示例](https://www.volcengine.com/docs/82379/1824121#%E5%A4%9A%E5%9B%BE%E8%9E%8D%E5%90%88%EF%BC%88%E5%A4%9A%E5%9B%BE%E8%BE%93%E5%85%A5%E5%8D%95%E5%9B%BE%E8%BE%93%E5%87%BA%EF%BC%89)），doubao-seededit-3.0-i2 仅支持单图输入。​
 * 图片URL：请确保图片URL可被访问。
@@ -159,8 +158,6 @@ image string/array 可选
 
 size  string 可选
 doubao-seedream-4.0
-doubao-seedream-3.0-t2i
-doubao-seededit-3.0-i2i
 
 指定生成图像的尺寸信息，支持以下两种方式，不可混用。
 * 方式1 | [示例](https://www.volcengine.com/docs/82379/1824121#%E6%8C%87%E5%AE%9A%E5%9B%BE%E5%83%8F%E5%88%86%E8%BE%A8%E7%8E%87)：指定生成图像的分辨率，并在prompt中用自然语言描述图片宽高比、图片形状或图片用途，最终由模型判断生成图片的大小。
