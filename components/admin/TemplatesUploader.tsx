@@ -319,6 +319,20 @@ export default function TemplatesUploader() {
         </div>
         <div className="space-y-2">
           <Label>Prompt</Label>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Available placeholder:</span>
+            <code
+              className="px-2 py-1 bg-muted rounded cursor-pointer hover:bg-muted/80 transition-colors select-all"
+              onClick={(e) => {
+                const text = e.currentTarget.textContent || "";
+                navigator.clipboard.writeText(text);
+                toast({ title: "Copied!", description: "Placeholder copied to clipboard" });
+              }}
+              title="Click to copy"
+            >
+              {`{{pet_by_breed}}`}
+            </code>
+          </div>
           <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={5} placeholder="Describe the template prompt..." />
         </div>
             <div className="flex items-center gap-3">
