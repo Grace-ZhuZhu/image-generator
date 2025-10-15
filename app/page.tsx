@@ -611,13 +611,13 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* 画廊区域 - 始终显示，每个图片使用独立的 LazyImage 占位符 */}
+              {/* 画廊区域 - 瀑布流布局，每个图片使用独立的 LazyImage 占位符 */}
               <TooltipProvider>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div className="columns-2 sm:columns-3 gap-4 space-y-4">
                           {/* 如果正在加载且没有数据，显示骨架屏卡片 */}
                           {(loadingTemplates || loadingPromptTemplates) && displayedTemplates.length === 0 ? (
                             Array.from({ length: 6 }).map((_, index) => (
-                              <Card key={`skeleton-${index}`} className="overflow-hidden">
+                              <Card key={`skeleton-${index}`} className="overflow-hidden break-inside-avoid mb-4">
                                 <div className="w-full aspect-square">
                                   <Skeleton className="w-full h-full" />
                                 </div>
@@ -638,7 +638,7 @@ export default function HomePage() {
                                   handleImageClick(item);
                                 }
                               }}
-                              className="cursor-pointer overflow-hidden transition hover:shadow-md relative"
+                              className="cursor-pointer overflow-hidden transition hover:shadow-md relative break-inside-avoid mb-4"
                             >
                               {/* Checkbox - only show in first layer (representatives view) */}
                               {!expandedPromptId && (
@@ -732,7 +732,7 @@ export default function HomePage() {
                                   size="icon"
                                   onClick={handleZoomOut}
                                   disabled={zoomLevel <= 1}
-                                  className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                  className="h-8 w-8 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0 disabled:opacity-50"
                                 >
                                   <ZoomOut className="h-4 w-4" />
                                 </Button>
@@ -741,7 +741,7 @@ export default function HomePage() {
                                   size="icon"
                                   onClick={handleResetZoom}
                                   disabled={zoomLevel === 1}
-                                  className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs border-white/20 focus:outline-none focus-visible:ring-0"
+                                  className="h-8 w-8 rounded-full bg-black/70 hover:bg-black/70 text-white text-xs border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0 disabled:opacity-50"
                                 >
                                   1:1
                                 </Button>
@@ -750,7 +750,7 @@ export default function HomePage() {
                                   size="icon"
                                   onClick={handleZoomIn}
                                   disabled={zoomLevel >= 3}
-                                  className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                  className="h-8 w-8 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0 disabled:opacity-50"
                                 >
                                   <ZoomIn className="h-4 w-4" />
                                 </Button>
@@ -762,7 +762,7 @@ export default function HomePage() {
                                   variant="secondary"
                                   size="icon"
                                   onClick={handlePrevImage}
-                                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0"
                                 >
                                   <ChevronLeft className="h-6 w-6" />
                                 </Button>
@@ -774,7 +774,7 @@ export default function HomePage() {
                                   variant="secondary"
                                   size="icon"
                                   onClick={handleNextImage}
-                                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-white/20 hover:bg-white/30 text-white border-white/20 focus:outline-none focus-visible:ring-0"
+                                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0"
                                 >
                                   <ChevronRight className="h-6 w-6" />
                                 </Button>
