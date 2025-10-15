@@ -262,16 +262,24 @@ http://localhost:3000/admin/templates
 
 ### 3. 生成图片
 
-1. **输入提示词**：在文本框中输入图片生成提示词
+1. **上传参考图片（可选）**：
+   - 点击文件选择按钮上传参考图片
+   - 最多支持 3 张参考图片
+   - 支持格式：JPEG、PNG
+   - 每张图片最大 10MB
+   - 参考图片会引导生成风格
+   - 可以点击 × 按钮移除已上传的图片
+
+2. **输入提示词**：在文本框中输入图片生成提示词
    - 支持中英文
    - 建议不超过 300 个中文字符或 600 个英文单词
    - 实时显示字符计数
 
-2. **点击生成**：点击 "Generate Image" 按钮
+3. **点击生成**：点击 "Generate Image" 按钮
    - 等待生成完成（显示加载动画）
    - 生成的图片会自动显示
 
-3. **下载图片**：
+4. **下载图片**：
    - 点击 "Download Image" 按钮下载
    - 或点击下方链接在新标签页打开
    - 图片文件名格式：`generated-{timestamp}.jpg`
@@ -280,10 +288,28 @@ http://localhost:3000/admin/templates
 
 生成图片时使用以下参数：
 
+**不带参考图片**：
 ```json
 {
   "model": "doubao-seedream-4-0-250828",
   "prompt": "<用户输入的提示词>",
+  "size": "1K",
+  "response_format": "url",
+  "watermark": false,
+  "stream": false,
+  "sequential_image_generation": "disabled"
+}
+```
+
+**带参考图片**：
+```json
+{
+  "model": "doubao-seedream-4-0-250828",
+  "prompt": "<用户输入的提示词>",
+  "image": [
+    "data:image/jpeg;base64,<base64_encoded_image_1>",
+    "data:image/png;base64,<base64_encoded_image_2>"
+  ],
   "size": "1K",
   "response_format": "url",
   "watermark": false,
@@ -318,6 +344,14 @@ A cute cat playing in a garden, bright sunlight, vibrant colors, high-quality ph
 - 英文单词：最多 600 个
 - 超出限制时会显示红色警告，无法生成
 
+⚠️ **参考图片限制**：
+- 最多上传 3 张参考图片（API 支持最多 10 张）
+- 支持格式：JPEG、PNG
+- 每张图片最大 10MB
+- 宽高比范围：[1/3, 3]
+- 宽高长度 > 14px
+- 总像素不超过 6000×6000
+
 ⚠️ **开发模式限制**：此功能仅在开发模式下可用（`NODE_ENV=development`）
 
 ### 故障排除
@@ -341,6 +375,17 @@ A cute cat playing in a garden, bright sunlight, vibrant colors, high-quality ph
 - 刷新页面重试
 - 检查浏览器控制台是否有 JavaScript 错误
 
+**问题：无法上传参考图片**
+- 检查文件格式是否为 JPEG 或 PNG
+- 检查文件大小是否超过 10MB
+- 确认未超过 3 张图片限制
+- 查看浏览器控制台的错误提示
+
+**问题：参考图片上传后生成失败**
+- 检查图片是否符合 API 要求（宽高比、像素等）
+- 尝试使用更小的图片
+- 查看服务器日志获取详细错误
+
 ### 技术细节
 
 **字符计数逻辑**：
@@ -353,13 +398,21 @@ A cute cat playing in a garden, bright sunlight, vibrant colors, high-quality ph
 - 设置 `target="_blank"` 在新标签页打开
 - 避免 CORS 问题
 
+**参考图片处理**：
+- 使用 FileReader API 将 File 对象转换为 Base64
+- Base64 格式：`data:image/<format>;base64,<base64_data>`
+- 支持多张图片（数组格式）
+- 前端验证文件类型和大小
+
 **API 调用流程**：
 1. 前端验证提示词（字符限制）
-2. 发送 POST 请求到 `/api/admin/generate`
-3. 后端验证权限（开发模式检查）
-4. 调用 Doubao SeedDream 4.0 API
-5. 返回图片 URL 给前端
-6. 前端显示图片和下载按钮
+2. 如有参考图片，转换为 Base64 格式
+3. 发送 POST 请求到 `/api/admin/generate`
+4. 后端验证权限（开发模式检查）
+5. 后端验证参考图片参数（如有）
+6. 调用 Doubao SeedDream 4.0 API
+7. 返回图片 URL 给前端
+8. 前端显示图片和下载按钮
 
 ---
 

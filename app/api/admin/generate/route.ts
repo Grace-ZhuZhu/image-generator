@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { prompt } = body;
+    const { prompt, image } = body;
 
     // Validate prompt
     if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
@@ -22,6 +22,24 @@ export async function POST(req: Request) {
         { error: "Prompt is required" },
         { status: 400 }
       );
+    }
+
+    // Validate image parameter if provided
+    if (image !== undefined) {
+      if (!Array.isArray(image) && typeof image !== "string") {
+        return NextResponse.json(
+          { error: "Image parameter must be a string or array of strings" },
+          { status: 400 }
+        );
+      }
+
+      // Validate array length (max 3 for our UI, but API supports up to 10)
+      if (Array.isArray(image) && image.length > 10) {
+        return NextResponse.json(
+          { error: "Maximum 10 reference images allowed" },
+          { status: 400 }
+        );
+      }
     }
 
     // Get API key from environment
@@ -36,8 +54,8 @@ export async function POST(req: Request) {
 
     // Call Doubao SeedDream 4.0 API
     const apiUrl = "https://ark.cn-beijing.volces.com/api/v3/images/generations";
-    
-    const requestBody = {
+
+    const requestBody: any = {
       model: "doubao-seedream-4-0-250828",
       prompt: prompt.trim(),
       size: "1K",
@@ -47,7 +65,16 @@ export async function POST(req: Request) {
       sequential_image_generation: "disabled",
     };
 
+    // Add reference images if provided
+    if (image) {
+      requestBody.image = image;
+    }
+
     console.log("[Image Generation] Calling Doubao API with prompt:", prompt.substring(0, 100));
+    if (image) {
+      const imageCount = Array.isArray(image) ? image.length : 1;
+      console.log("[Image Generation] With reference images:", imageCount);
+    }
 
     const response = await fetch(apiUrl, {
       method: "POST",

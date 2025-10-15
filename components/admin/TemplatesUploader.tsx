@@ -29,9 +29,12 @@ export default function TemplatesUploader() {
     url: string;
     size: string;
   } | null>(null);
+  const [referenceImages, setReferenceImages] = useState<File[]>([]);
+  const [referencePreviews, setReferencePreviews] = useState<string[]>([]);
+  const referenceInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // manage object URLs
+    // manage object URLs for upload tab
     previews.forEach((url) => URL.revokeObjectURL(url));
     setPreviews(files.map((f) => URL.createObjectURL(f)));
     // cleanup when unmount or files change next time
@@ -42,6 +45,18 @@ export default function TemplatesUploader() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [files]);
+
+  useEffect(() => {
+    // manage object URLs for reference images in generate tab
+    referencePreviews.forEach((url) => URL.revokeObjectURL(url));
+    setReferencePreviews(referenceImages.map((f) => URL.createObjectURL(f)));
+    return () => {
+      referencePreviews.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referenceImages]);
 
   const canSubmit = useMemo(() => files.length > 0 && !!prompt.trim(), [files, prompt]);
 
@@ -72,6 +87,67 @@ export default function TemplatesUploader() {
     if (picked.length === 0) return;
     setFiles((prev) => [...prev, ...picked]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Reference image handlers for Generate tab
+  const removeReferenceAt = (idx: number) => {
+    setReferenceImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const onReferenceImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+
+    // Validate file types
+    const validTypes = ['image/jpeg', 'image/png'];
+    const invalidFiles = picked.filter(f => !validTypes.includes(f.type));
+    if (invalidFiles.length > 0) {
+      toast({
+        title: "Invalid file type",
+        description: "Only JPEG and PNG images are allowed",
+        variant: "destructive"
+      });
+      if (referenceInputRef.current) referenceInputRef.current.value = "";
+      return;
+    }
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const oversizedFiles = picked.filter(f => f.size > maxSize);
+    if (oversizedFiles.length > 0) {
+      toast({
+        title: "File too large",
+        description: "Each image must be less than 10MB",
+        variant: "destructive"
+      });
+      if (referenceInputRef.current) referenceInputRef.current.value = "";
+      return;
+    }
+
+    setReferenceImages((prev) => {
+      const newTotal = prev.length + picked.length;
+      if (newTotal > 3) {
+        toast({
+          title: "Too many images",
+          description: "Maximum 3 reference images allowed",
+          variant: "destructive"
+        });
+        return prev;
+      }
+      return [...prev, ...picked];
+    });
+
+    if (referenceInputRef.current) referenceInputRef.current.value = "";
+  };
+
+  // Convert File to Base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -107,10 +183,31 @@ export default function TemplatesUploader() {
       setGenerating(true);
       setGeneratedImage(null);
 
+      // Convert reference images to Base64 if any
+      let imageData: string[] | undefined;
+      if (referenceImages.length > 0) {
+        try {
+          imageData = await Promise.all(
+            referenceImages.map(file => fileToBase64(file))
+          );
+        } catch (error) {
+          throw new Error("Failed to process reference images");
+        }
+      }
+
+      const requestBody: any = {
+        prompt: generatePrompt.trim(),
+      };
+
+      // Add image data if reference images exist
+      if (imageData && imageData.length > 0) {
+        requestBody.image = imageData;
+      }
+
       const res = await fetch("/api/admin/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: generatePrompt.trim() }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -236,6 +333,52 @@ export default function TemplatesUploader() {
         {/* Generate Tab */}
         <TabsContent value="generate">
           <div className="space-y-4">
+            {/* Reference Images Upload */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Reference Images (Optional, max 3)</Label>
+                <span className="text-xs text-muted-foreground">
+                  {referenceImages.length}/3 images selected
+                </span>
+              </div>
+              <input
+                ref={referenceInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                multiple
+                onChange={onReferenceImageChange}
+                disabled={referenceImages.length >= 3}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Upload reference images to guide the generation style. Supports JPEG and PNG (max 10MB each).
+              </p>
+              {referencePreviews.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {referencePreviews.map((src, i) => (
+                    <div key={i} className="relative h-20 w-20">
+                      <Image
+                        src={src}
+                        alt={`reference-${i}`}
+                        width={80}
+                        height={80}
+                        className="h-20 w-20 object-cover rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeReferenceAt(i)}
+                        className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border bg-background text-muted-foreground hover:bg-muted"
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Prompt Input */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="generate-prompt">Image Generation Prompt</Label>
