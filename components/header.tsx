@@ -44,7 +44,6 @@ export default function Header({ user }: HeaderProps) {
   const mainNavItems: NavItem[] = [
     { label: "Home", href: "/" },
     { label: "Gallery", href: "/gallery" },
-    { label: "Create", href: "/pet-generator" },
   ];
 
   // Dashboard items - empty array as we don't want navigation items in dashboard

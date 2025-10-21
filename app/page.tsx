@@ -22,12 +22,11 @@ import type { Template } from "@/types/templates";
 
 const THEMES = [
   { key: "all", label: "全部" },
-  { key: "holiday", label: "节日 🎄" },
-  { key: "career", label: "职业 👔" },
-  { key: "fantasy", label: "奇幻 🦄" },
-  { key: "fashion", label: "时尚 👗" },
-  { key: "art", label: "艺术 🎨" },
-  { key: "studio", label: "工作室 📸" },
+  { key: "holiday", label: "节日" },
+  { key: "fantasy", label: "奇幻" },
+  { key: "fashion", label: "时尚" },
+  { key: "art", label: "艺术" },
+  { key: "studio", label: "工作室" },
 ] as const;
 
 
@@ -406,7 +405,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* 悬浮操作栏：移到主菜单（Header）下方，固定在顶部 */}
       <div className="fixed inset-x-0 top-16 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-        <div className="container mx-auto max-w-6xl px-4 py-3">
+        <div className="container mx-auto max-w-[1400px] px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-1 items-center gap-3">
               {/* Selected template display */}
@@ -554,7 +553,7 @@ export default function HomePage() {
 
       {/* Hero Section - 保留 */}
       <section className="relative overflow-hidden py-16 md:py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
+        <div className="container mx-auto max-w-[1400px]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -574,7 +573,7 @@ export default function HomePage() {
       </section>
 
       {/* 主布局：左侧瀑布流 + 右侧结果面板 */}
-      <section className="container mx-auto max-w-6xl px-4 pb-40">
+      <section className="container mx-auto max-w-[1400px] px-4 pb-40">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左：主题与参考图 */}
           <div className="lg:col-span-2">
@@ -615,7 +614,7 @@ export default function HomePage() {
 
               {/* 画廊区域 - 瀑布流布局，每个图片使用独立的 LazyImage 占位符 */}
               <TooltipProvider>
-                        <div className="columns-2 sm:columns-3 gap-4 space-y-4">
+                        <div className="columns-2 sm:columns-3 lg:columns-4 gap-4 space-y-4">
                           {/* 如果正在加载且没有数据，显示骨架屏卡片 */}
                           {(loadingTemplates || loadingPromptTemplates) && displayedTemplates.length === 0 ? (
                             Array.from({ length: 6 }).map((_, index) => (

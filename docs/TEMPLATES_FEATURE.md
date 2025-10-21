@@ -10,6 +10,79 @@
 
 ## 更新日志
 
+### [2025-10-02] - 优化主页布局宽度
+
+**变更：**
+- 📐 增加页面最大宽度：`max-w-6xl` (1152px) → `max-w-[1400px]` (1400px)
+- 📏 保持合适边距：`px-4` (16px) 不变
+- 🖼️ 优化瀑布流列数：在大屏幕上显示 4 列（原 3 列）
+- ✨ 平衡空间利用与视觉呼吸感
+
+**修改文件：**
+- `app/page.tsx` - 更新容器宽度配置
+
+**布局变化：**
+- 悬浮操作栏：`max-w-6xl px-4` → `max-w-[1400px] px-4`
+- Hero Section：`max-w-6xl px-4` → `max-w-[1400px] px-4`
+- 主布局区域：`max-w-6xl px-4` → `max-w-[1400px] px-4`
+- 瀑布流列数：`columns-2 sm:columns-3` → `columns-2 sm:columns-3 lg:columns-4`
+
+**响应式布局：**
+- 移动端（< 640px）：2 列
+- 小屏幕（≥ 640px）：3 列
+- 大屏幕（≥ 1024px）：4 列
+
+**设计理念：**
+- 增加内容区域宽度（+248px，+22%）
+- 保持合适边距（16px），确保视觉呼吸空间
+- 保持图片合适尺寸（每列约 340px）
+- 确保右侧面板不超出屏幕
+- 平衡空间利用与用户体验
+
+**效果：**
+- ✅ 页面可以容纳更多图片
+- ✅ 减少空白区域，提高空间利用率
+- ✅ 大屏幕用户体验更好
+- ✅ 保持响应式设计，移动端不受影响
+
+### [2025-10-02] - 移除 Create 导航项
+
+**变更：**
+- ❌ 移除主页 Header 中的 "Create" 导航链接
+- 🔄 简化导航栏，只保留 "Home" 和 "Gallery"
+
+**修改文件：**
+- `components/header.tsx` - 更新 mainNavItems 配置
+
+**导航结构：**
+- 修改前：Home | Gallery | Create
+- 修改后：Home | Gallery
+
+**原因：**
+- 主页本身就是创建页面，不需要额外的 Create 链接
+- 简化导航结构，减少用户困惑
+- 提升用户体验，直接在主页完成所有操作
+
+### [2025-10-02] - 移除 Career Tab 和 Emoji
+
+**变更：**
+- ❌ 移除 Career（职业）主题 Tab
+- 🔄 去掉所有 Tab 上的 emoji 图标
+  - 全部 / All
+  - 节日 / Holiday
+  - 奇幻 / Fantasy
+  - 时尚 / Fashion
+  - 艺术 / Art
+  - 工作室 / Studio
+
+**修改文件：**
+- `app/page.tsx` - 更新 THEMES 配置
+- `lib/i18n.tsx` - 更新英文和中文翻译
+
+**原因：**
+- 简化主题分类，移除使用较少的 Career 主题
+- 统一视觉风格，去掉 emoji 使界面更简洁专业
+
 ### [2025-10-02] - Header 样式修复
 
 **修复问题：**
@@ -354,7 +427,7 @@ ui: {
 CREATE TABLE public.prompts (
     id uuid PRIMARY KEY,
     prompt text NOT NULL,          -- AI 生成提示词（支持 {{pet_by_breed}} 占位符）
-    theme text,                    -- 主题分类（如 holiday, career, fantasy 等）
+    theme text,                    -- 主题分类（如 holiday, fantasy, fashion, art, studio 等）
     created_by uuid,               -- 创建者用户 ID
     created_at timestamptz,        -- 创建时间
     updated_at timestamptz,        -- 更新时间
@@ -722,14 +795,17 @@ templates 图片存储在 Supabase Storage 的 `templates` 桶中：
 ```typescript
 const THEMES = [
   { key: "all", label: "全部" },
-  { key: "holiday", label: "节日 🎄" },
-  { key: "career", label: "职业 👔" },
-  { key: "fantasy", label: "奇幻 🦄" },
-  { key: "fashion", label: "时尚 👗" },
-  { key: "art", label: "艺术 🎨" },
-  { key: "studio", label: "工作室 📸" },  // 新增
+  { key: "holiday", label: "节日" },
+  { key: "fantasy", label: "奇幻" },
+  { key: "fashion", label: "时尚" },
+  { key: "art", label: "艺术" },
+  { key: "studio", label: "工作室" },
 ] as const;
 ```
+
+**说明：**
+- 移除了 Career（职业）主题
+- 去掉了所有 emoji 图标，使界面更简洁专业
 
 ### 国际化配置
 
@@ -739,23 +815,21 @@ const THEMES = [
 // 英文
 themes: {
   all: "All",
-  holiday: "Holiday 🎄",
-  career: "Career 👔",
-  fantasy: "Fantasy 🦄",
-  fashion: "Fashion 👗",
-  art: "Art 🎨",
-  studio: "Studio 📸",
+  holiday: "Holiday",
+  fantasy: "Fantasy",
+  fashion: "Fashion",
+  art: "Art",
+  studio: "Studio",
 }
 
 // 中文
 themes: {
   all: "全部",
-  holiday: "节日 🎄",
-  career: "职业 👔",
-  fantasy: "奇幻 🦄",
-  fashion: "时尚 👗",
-  art: "艺术 🎨",
-  studio: "工作室 📸",
+  holiday: "节日",
+  fantasy: "奇幻",
+  fashion: "时尚",
+  art: "艺术",
+  studio: "工作室",
 }
 ```
 
