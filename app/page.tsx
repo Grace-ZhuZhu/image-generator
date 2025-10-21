@@ -255,18 +255,19 @@ export default function HomePage() {
     const currentList = displayedTemplates;
     const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
 
-    if (currentIndex > 0) {
-      const prevTemplate = currentList[currentIndex - 1];
-      setViewingImage(prevTemplate);
-      setZoomLevel(1); // Reset zoom when changing image
-      setImageLoading(true); // Reset loading state
-      setImageError(false); // Reset error state
-      setImageRetryCount(0); // Reset retry count
-      // Clear any pending retry timeout
-      if (imageRetryTimeoutRef.current) {
-        clearTimeout(imageRetryTimeoutRef.current);
-        imageRetryTimeoutRef.current = null;
-      }
+    // Loop to the last image if at the first image
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : currentList.length - 1;
+    const prevTemplate = currentList[prevIndex];
+
+    setViewingImage(prevTemplate);
+    setZoomLevel(1); // Reset zoom when changing image
+    setImageLoading(true); // Reset loading state
+    setImageError(false); // Reset error state
+    setImageRetryCount(0); // Reset retry count
+    // Clear any pending retry timeout
+    if (imageRetryTimeoutRef.current) {
+      clearTimeout(imageRetryTimeoutRef.current);
+      imageRetryTimeoutRef.current = null;
     }
   };
 
@@ -277,18 +278,19 @@ export default function HomePage() {
     const currentList = displayedTemplates;
     const currentIndex = currentList.findIndex(t => t.id === viewingImage.id);
 
-    if (currentIndex < currentList.length - 1) {
-      const nextTemplate = currentList[currentIndex + 1];
-      setViewingImage(nextTemplate);
-      setZoomLevel(1); // Reset zoom when changing image
-      setImageLoading(true); // Reset loading state
-      setImageError(false); // Reset error state
-      setImageRetryCount(0); // Reset retry count
-      // Clear any pending retry timeout
-      if (imageRetryTimeoutRef.current) {
-        clearTimeout(imageRetryTimeoutRef.current);
-        imageRetryTimeoutRef.current = null;
-      }
+    // Loop to the first image if at the last image
+    const nextIndex = currentIndex < currentList.length - 1 ? currentIndex + 1 : 0;
+    const nextTemplate = currentList[nextIndex];
+
+    setViewingImage(nextTemplate);
+    setZoomLevel(1); // Reset zoom when changing image
+    setImageLoading(true); // Reset loading state
+    setImageError(false); // Reset error state
+    setImageRetryCount(0); // Reset retry count
+    // Clear any pending retry timeout
+    if (imageRetryTimeoutRef.current) {
+      clearTimeout(imageRetryTimeoutRef.current);
+      imageRetryTimeoutRef.current = null;
     }
   };
 
@@ -714,8 +716,6 @@ export default function HomePage() {
                       {/* Image viewer dialog */}
                       {viewingImage && (() => {
                         const { current, total } = getCarouselPosition();
-                        const isFirst = current === 1;
-                        const isLast = current === total;
 
                         return (
                           <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
@@ -757,28 +757,24 @@ export default function HomePage() {
                               </div>
 
                               {/* Left arrow */}
-                              {!isFirst && (
-                                <Button
-                                  variant="secondary"
-                                  size="icon"
-                                  onClick={handlePrevImage}
-                                  className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0"
-                                >
-                                  <ChevronLeft className="h-6 w-6" />
-                                </Button>
-                              )}
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                onClick={handlePrevImage}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0"
+                              >
+                                <ChevronLeft className="h-6 w-6" />
+                              </Button>
 
                               {/* Right arrow */}
-                              {!isLast && (
-                                <Button
-                                  variant="secondary"
-                                  size="icon"
-                                  onClick={handleNextImage}
-                                  className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0"
-                                >
-                                  <ChevronRight className="h-6 w-6" />
-                                </Button>
-                              )}
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                onClick={handleNextImage}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 z-50 h-12 w-12 rounded-full bg-black/70 hover:bg-black/70 text-white border border-white/30 shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-0"
+                              >
+                                <ChevronRight className="h-6 w-6" />
+                              </Button>
 
                               {/* Image counter */}
                               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 px-3 py-1 rounded-full bg-black/60 text-white text-sm">
