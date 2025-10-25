@@ -47,6 +47,20 @@ export const I18N = {
       start: "Generate",
       generating: "Generating…",
     },
+    notify: {
+      bannerText: "We will launch the generate feature soon. Please leave your email, and we’ll notify you as soon as it’s ready.",
+      buttonText: "Notify me",
+      dialogTitle: "Get notified when Generate launches",
+      emailLabel: "Email address",
+      submit: "Submit",
+      submitting: "Submitting...",
+      cancel: "Cancel",
+      successNew: "You're on the list! We'll email you when it's ready.",
+      successExisting: "You're already on the list. We'll notify you when it's ready.",
+      invalidEmail: "Please enter a valid email address",
+      failed: "Submission failed. Please try again later",
+      networkError: "Network error. Please try again later"
+    },
   },
   zh: {
     hero: {
@@ -88,6 +102,20 @@ export const I18N = {
     actions: {
       start: "开始AI生成",
       generating: "生成中…",
+    },
+    notify: {
+      bannerText: "我们很快会上线 generate 功能，请留下您的邮箱，我们会第一时间通知您",
+      buttonText: "登记邮箱",
+      dialogTitle: "订阅功能上线通知",
+      emailLabel: "邮箱地址",
+      submit: "提交",
+      submitting: "提交中...",
+      cancel: "取消",
+      successNew: "登记成功！我们会在功能上线时第一时间通知您。",
+      successExisting: "您已登记过，我们会在功能上线时通知您。",
+      invalidEmail: "请输入有效的邮箱地址",
+      failed: "提交失败，请稍后重试",
+      networkError: "网络异常，请稍后重试"
     },
   },
 } as const;

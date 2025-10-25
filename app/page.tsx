@@ -19,6 +19,8 @@ import { Share2, Zap, Flame, RefreshCw, Download, X, Plus, Loader2, ZoomIn, Zoom
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { Template } from "@/types/templates";
+import { Input } from "@/components/ui/input";
+
 
 const THEMES = [
   { key: "all", label: "全部" },
@@ -76,6 +78,9 @@ export default function HomePage() {
   const petByBreed = useMemo(() => computePetByBreed(pet, breed), [pet, breed]);
 
   const { L } = useI18n();
+  // Temporary feature flag: show announcement & hide generate row when true
+  const SHOW_ANNOUNCEMENT = true;
+
 
   // Templates data from API - Three-level structure:
   // Level 1: Representatives (one per prompt) - paginated
@@ -109,6 +114,13 @@ export default function HomePage() {
       urls.forEach((u) => URL.revokeObjectURL(u));
     };
   }, [files]);
+
+  // Temporary: announcement + email notify state
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyError, setNotifyError] = useState("");
+  const [notifySuccess, setNotifySuccess] = useState("");
+  const [submittingNotify, setSubmittingNotify] = useState(false);
 
   // Fetch representative templates (one per prompt) when theme or page changes
   useEffect(() => {
@@ -401,6 +413,41 @@ export default function HomePage() {
     setTimeout(() => setIsLoading(false), 1500);
   };
 
+  // Temporary notify: simple email validator
+  const isValidEmail = (email: string) => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(email);
+
+  const handleNotifySubmit = async () => {
+    const e = notifyEmail.trim().toLowerCase();
+    if (!isValidEmail(e)) {
+      setNotifyError(L.notify.invalidEmail);
+      setNotifySuccess("");
+      return;
+    }
+    setNotifyError("");
+    setSubmittingNotify(true);
+    try {
+      const res = await fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.ok) {
+        setNotifySuccess(data?.already ? L.notify.successExisting : L.notify.successNew);
+        setNotifyEmail("");
+      } else {
+        setNotifyError(data?.error || L.notify.failed);
+        setNotifySuccess("");
+      }
+    } catch (err) {
+      setNotifyError(L.notify.networkError);
+      setNotifySuccess("");
+    } finally {
+      setSubmittingNotify(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* 悬浮操作栏：移到主菜单（Header）下方，固定在顶部 */}
@@ -546,10 +593,55 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+
+          {/* Announcement bar (fixed with toolbar) */}
+          {SHOW_ANNOUNCEMENT && (
+          <div className="mt-2">
+            <div className="rounded-md border bg-amber-50 dark:bg-amber-900/20 p-3">
+              <div className="flex items-center justify-center gap-2 flex-wrap text-center">
+                <p className="text-base text-amber-900/90 dark:text-amber-200/90 m-0">{L.notify.bannerText}</p>
+                <Button
+                  onClick={() => { setNotifyOpen(true); setNotifySuccess(""); setNotifyError(""); }}
+                  size="sm"
+                  className="px-2 py-1 h-8 text-sm border border-amber-200 bg-amber-100 text-amber-900 hover:bg-amber-200 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/40 transition-colors"
+                >
+                  {L.notify.buttonText}
+                </Button>
+              </div>
+            </div>
+
+          {/* Email notify dialog */}
+          <Dialog open={notifyOpen} onOpenChange={(o) => { setNotifyOpen(o); if (!o) { setNotifyEmail(""); setNotifyError(""); setNotifySuccess(""); } }}>
+            <DialogContent>
+              <DialogTitle>{L.notify.dialogTitle}</DialogTitle>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground">{L.notify.emailLabel}</label>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    value={notifyEmail}
+                    onChange={(e) => setNotifyEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleNotifySubmit(); } }}
+                  />
+                  {notifyError && <p className="text-sm text-destructive">{notifyError}</p>}
+                  {notifySuccess && <p className="text-sm text-green-600 dark:text-green-400">{notifySuccess}</p>}
+                </div>
+                <div className="flex gap-2 justify-end pt-2">
+                  <Button variant="outline" onClick={() => setNotifyOpen(false)}>{L.notify.cancel}</Button>
+                  <Button onClick={handleNotifySubmit} disabled={submittingNotify}>
+                    {submittingNotify ? L.notify.submitting : L.notify.submit}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+        )}
       </div>
 
       {/* 顶部悬浮操作栏占位，避免覆盖内容 */}
-      <div className="h-20" />
+      <div className={SHOW_ANNOUNCEMENT ? "h-32" : "h-20"} />
 
       {/* Hero Section - 保留 */}
       <section className="relative overflow-hidden py-16 md:py-20 px-4">
@@ -571,6 +663,7 @@ export default function HomePage() {
           </motion.div>
         </div>
       </section>
+
 
       {/* 主布局：左侧瀑布流 + 右侧结果面板 */}
       <section className="container mx-auto max-w-[1400px] px-4 pb-40">
