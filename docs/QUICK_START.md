@@ -4,6 +4,7 @@
 
 - [Templates 功能快速开始](#-templates-功能快速开始)
 - [图片生成功能快速开始](#-图片生成功能快速开始)
+- [订阅邮箱管理（Admin Subscribers）](#-订阅邮箱管理admin-subscribers)
 - [验证功能](#-验证功能)
 - [常见问题](#-常见问题)
 
@@ -235,7 +236,42 @@ npx tsx scripts/test-templates-api.ts
 
 ---
 
-## 🖼️ 图片生成功能快速开始
+
+## 📮 订阅邮箱管理（Admin Subscribers）
+
+### 功能概述
+- 管理员在 `/admin/subscribers` 查看、搜索、分页浏览订阅邮箱
+- 一键导出 CSV：`/api/admin/subscribers?format=csv[&q=xxx]`
+- 已登录用户将自动加入订阅名单（在服务器端幂等插入，去重）
+
+### 权限与环境变量
+- 仅在以下条件可访问：
+  - 开发模式（`NODE_ENV=development`）或
+  - 当前登录邮箱在 `ADMIN_EMAILS` 白名单中（逗号分隔）
+- 推荐配置：
+  - `SUPABASE_SERVICE_ROLE_KEY`（仅服务端使用，避免 RLS 限制）
+
+### 自动入库
+- 位置：在全局 `app/layout.tsx` 里，当检测到 `user.email` 存在时，会调用服务端方法入库
+- 去重策略：
+  - 先按 email 查询是否存在
+  - 若不存在则插入；如数据库存在唯一约束时，也会安全处理 `23505` 冲突码
+
+### 使用示例
+- 访问管理页：
+  ```
+  http://localhost:3000/admin/subscribers
+  ```
+- 导出所有：
+  ```bash
+  curl -H "Cookie: <your-auth-cookie>" "http://localhost:3000/api/admin/subscribers?format=csv"
+  ```
+- 按关键字导出（模糊匹配邮箱）：
+  ```bash
+  curl -H "Cookie: <your-auth-cookie>" "http://localhost:3000/api/admin/subscribers?format=csv&q=gmail.com"
+  ```
+
+
 
 ### 功能概述
 

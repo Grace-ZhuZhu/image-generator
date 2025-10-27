@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { createClient } from "@/utils/supabase/server";
 import { Toaster } from "@/components/ui/toaster";
 import { I18nProvider } from "@/lib/i18n/index";
+import { ensureSubscriber } from "@/lib/subscribers";
 import "./globals.css";
 
 const baseUrl = process.env.BASE_URL
@@ -43,6 +44,15 @@ export default async function RootLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Auto-enroll logged-in user's email into notify_subscribers (idempotent)
+  if (user?.email) {
+    try {
+      await ensureSubscriber(user.email);
+    } catch (e) {
+      console.warn("ensureSubscriber in layout ignored error:", e);
+    }
+  }
 
   return (
     <html lang="en" className={geistSans.className} suppressHydrationWarning>
