@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { SubscriptionPortalDialog } from "./subscription-portal-dialog";
 import { SubscriptionState } from "@/types/subscriptions";
+import { useI18n } from "@/lib/i18n/index";
 
 type StatusConfig = {
   color: string;
@@ -110,6 +111,7 @@ type SubscriptionStatusCardProps = {
 export function SubscriptionStatusCard({
   subscription,
 }: SubscriptionStatusCardProps) {
+  const { L } = useI18n();
   return (
     <div className="rounded-xl border bg-card p-6">
       <div className="flex items-center gap-4">
@@ -117,7 +119,7 @@ export function SubscriptionStatusCard({
           <CreditCard className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Subscription Status</p>
+          <p className="text-sm text-muted-foreground">{L.dashboard.subscription.title}</p>
           {subscription && (
             <h3
               className={`text-2xl font-bold capitalize mt-1 ${
@@ -132,7 +134,7 @@ export function SubscriptionStatusCard({
           )}
           {!subscription && (
             <h3 className="text-2xl font-bold mt-1 text-muted-foreground">
-              No Active Plan
+              {L.dashboard.subscription.noPlan}
             </h3>
           )}
         </div>

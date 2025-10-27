@@ -3,30 +3,9 @@
 import { Logo } from "./logo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n/index";
 
-const footerLinks = [
-  {
-    title: "Product",
-    links: [
-      { label: "Features", href: "/#features" },
-      { label: "Pricing", href: "/#pricing" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { label: "About", href: "/about" },
-      { label: "Blog", href: "#blog" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Privacy", href: "/privacy" },
-      { label: "Terms", href: "/terms" },
-    ],
-  },
-];
+
 
 export function Footer() {
   const pathname = usePathname();
@@ -37,20 +16,37 @@ export function Footer() {
       <footer className="border-t py-6 md:py-0">
         <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row md:py-0">
           <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
-            <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-              Built by{" "}
-              <Link
-                href="https://Raphael.app"
-                className="font-medium underline underline-offset-4"
-              >
-                Raphael Starter
-              </Link>
-            </p>
+            {/* Footer branding removed per request */}
           </div>
         </div>
       </footer>
     );
   }
+  const { L } = useI18n();
+  const footerLinks = [
+    {
+      title: L.footer.product.title,
+      links: [
+        { label: L.footer.product.features, href: "/#features" },
+        { label: L.footer.product.pricing, href: "/#pricing" },
+      ],
+    },
+    {
+      title: L.footer.company.title,
+      links: [
+        { label: L.footer.company.about, href: "/about" },
+        { label: L.footer.company.blog, href: "#blog" },
+      ],
+    },
+    {
+      title: L.footer.legal.title,
+      links: [
+        { label: L.footer.legal.privacy, href: "/privacy" },
+        { label: L.footer.legal.terms, href: "/terms" },
+      ],
+    },
+  ] as const;
+
 
   return (
     <footer className="border-t">

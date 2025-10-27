@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n/index";
+
 type QuickAction = {
   label: string;
   href: string;
@@ -9,20 +11,19 @@ type QuickActionsCardProps = {
   actions?: QuickAction[];
 };
 
-const DEFAULT_ACTIONS: QuickAction[] = [
-  { label: "Create Pet Photo", href: "/pet-generator" },
-  { label: "View Gallery", href: "/gallery" },
-  { label: "Buy Credits", href: "#pricing" },
-];
-
-export function QuickActionsCard({
-  actions = DEFAULT_ACTIONS,
-}: QuickActionsCardProps) {
+export function QuickActionsCard({ actions }: QuickActionsCardProps) {
+  const { L } = useI18n();
+  const defaultActions: QuickAction[] = [
+    { label: L.dashboard.quickActions.createPet, href: "/" },
+    { label: L.dashboard.quickActions.viewGallery, href: "/gallery" },
+    { label: L.dashboard.quickActions.buyCredits, href: "#pricing" },
+  ];
+  const actionsToUse = actions ?? defaultActions;
   return (
     <div className="rounded-xl border bg-card p-6">
-      <h3 className="font-semibold mb-4">Quick Actions</h3>
+      <h3 className="font-semibold mb-4">{L.dashboard.quickActions.title}</h3>
       <div className="space-y-2">
-        {actions.map((action, index) => (
+        {actionsToUse.map((action, index) => (
           <a
             key={index}
             href={action.href}

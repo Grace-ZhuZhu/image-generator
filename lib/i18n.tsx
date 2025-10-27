@@ -61,6 +61,42 @@ export const I18N = {
       failed: "Submission failed. Please try again later",
       networkError: "Network error. Please try again later"
     },
+    gallery: {
+      title: "Your Gallery",
+      signInPrompt: "Sign in to see all pet photos you generate. Once you create images, they will appear here.",
+      signIn: "Sign in",
+      createAccount: "Create account",
+      emptyPrompt: "You haven't created any images yet. Start by uploading your pet photos and generating!",
+      createCta: "Create Pet Photo",
+      createMore: "Create more →",
+    },
+    header: {
+      navHome: "Home",
+      navGallery: "Gallery",
+      profile: "Profile",
+      dashboard: "Dashboard",
+      signIn: "Sign in",
+      signUp: "Sign up",
+      signOut: "Sign out",
+      navigation: "Navigation",
+      toggleMenu: "Toggle menu",
+    },
+    footer: {
+      product: { title: "Product", features: "Features", pricing: "Pricing" },
+      company: { title: "Company", about: "About", blog: "Blog" },
+      legal: { title: "Legal", privacy: "Privacy", terms: "Terms" },
+    },
+    dashboard: {
+      welcomeTitlePrefix: "Welcome back,",
+      welcomeDesc: "Create amazing AI-generated pet photos, manage your credits, and track your creations.",
+      quickActions: { title: "Quick Actions", createPet: "Create Pet Photo", viewGallery: "View Gallery", buyCredits: "Buy Credits" },
+      comingSoon: { title: "Pet Gallery Coming Soon", desc: "Your generated pet photos and creation history will appear here once you start creating!" },
+      account: { title: "Account Details", email: "Email", userId: "User ID" },
+      pricing: { title: "Pricing", comingSoon: "Coming soon." },
+      subscription: { title: "Subscription Status", noPlan: "No Active Plan" },
+      credits: { available: "Available Credits", recent: "Recent Activity" },
+    },
+
   },
   zh: {
     hero: {
@@ -99,6 +135,33 @@ export const I18N = {
       q2k: "2K(300\ud83d\udc8e)",
       q4k: "4K(500\ud83d\udc8e)",
     },
+    header: {
+      navHome: "首页",
+      navGallery: "图库",
+      profile: "个人资料",
+      dashboard: "控制台",
+      signIn: "登录",
+      signUp: "注册",
+      signOut: "退出登录",
+      navigation: "导航",
+      toggleMenu: "切换菜单",
+    },
+    footer: {
+      product: { title: "产品", features: "功能", pricing: "定价" },
+      company: { title: "公司", about: "关于我们", blog: "博客" },
+      legal: { title: "法律", privacy: "隐私政策", terms: "使用条款" },
+    },
+    dashboard: {
+      welcomeTitlePrefix: "欢迎回来，",
+      welcomeDesc: "创建惊艳的 AI 宠物写真，管理你的点数并追踪你的创作记录。",
+      quickActions: { title: "快速操作", createPet: "创建宠物照片", viewGallery: "查看图库", buyCredits: "购买点数" },
+      comingSoon: { title: "宠物图库即将上线", desc: "当你开始创作后，你生成的宠物照片与历史记录将展示在这里。" },
+      account: { title: "账户信息", email: "邮箱", userId: "用户 ID" },
+      pricing: { title: "定价", comingSoon: "敬请期待。" },
+      subscription: { title: "订阅状态", noPlan: "暂无订阅" },
+      credits: { available: "可用点数", recent: "近期活动" },
+    },
+
     actions: {
       start: "开始AI生成",
       generating: "生成中…",
@@ -116,6 +179,15 @@ export const I18N = {
       invalidEmail: "请输入有效的邮箱地址",
       failed: "提交失败，请稍后重试",
       networkError: "网络异常，请稍后重试"
+    },
+    gallery: {
+      title: "你的图库",
+      signInPrompt: "登录后可查看你生成的宠物照片。创建完成后将展示在这里。",
+      signIn: "登录",
+      createAccount: "创建账号",
+      emptyPrompt: "你还没有创建任何图片。先上传宠物照片并开始生成吧！",
+      createCta: "去创建宠物照片",
+      createMore: "继续创作 		\u2192",
     },
   },
 } as const;

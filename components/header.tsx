@@ -39,11 +39,12 @@ interface NavItem {
 export default function Header({ user }: HeaderProps) {
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith("/dashboard");
+  const { L } = useI18n();
 
   // Main navigation items for AI Pet Photography
   const mainNavItems: NavItem[] = [
-    { label: "Home", href: "/" },
-    { label: "Gallery", href: "/gallery" },
+    { label: L.header.navHome, href: "/" },
+    { label: L.header.navGallery, href: "/gallery" },
   ];
 
   // Dashboard items - empty array as we don't want navigation items in dashboard
@@ -88,26 +89,26 @@ export default function Header({ user }: HeaderProps) {
               {!isDashboard && (
                 <>
                   <Button asChild size="sm" variant="default">
-                    <Link href="/profile">Profile</Link>
+                    <Link href="/profile">{L.header.profile}</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link href="/dashboard">Dashboard</Link>
+                    <Link href="/dashboard">{L.header.dashboard}</Link>
                   </Button>
                 </>
               )}
               <form action={signOutAction}>
                 <Button type="submit" variant="outline" size="sm">
-                  Sign out
+                  {L.header.signOut}
                 </Button>
               </form>
             </div>
           ) : (
             <div className="hidden md:flex gap-2">
               <Button asChild size="sm" variant="outline">
-                <Link href="/sign-in">Sign in</Link>
+                <Link href="/sign-in">{L.header.signIn}</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href="/sign-up">Sign up</Link>
+                <Link href="/sign-up">{L.header.signUp}</Link>
               </Button>
             </div>
           )}
