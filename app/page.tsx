@@ -16,7 +16,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Share2, Zap, Flame, RefreshCw, Download, X, Plus, Loader2, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { Template } from "@/types/templates";
 import { Input } from "@/components/ui/input";
@@ -35,25 +34,6 @@ const THEMES = [
 
 // i18n moved to lib/i18n
 
-// Pet/Breed dropdowns and prompt variable logic
-const OTHER = "Other-不在此列表中" as const;
-const PETS = ["cat", "dog", "rabbit", OTHER] as const;
-const BREEDS: Record<string, string[]> = {
-  cat: ["British Shorthair", "Siamese", "Persian", "Ragdoll"],
-  dog: ["poodle", "shiba", "golden retriever", "husky"],
-  rabbit: [],
-};
-
-function computePetByBreed(pet?: string, breed?: string) {
-  if (!pet || pet === OTHER) return "宠物";
-  if ((pet === "cat" || pet === "dog") && breed && breed !== OTHER) return `${breed} ${pet}`;
-  return pet;
-}
-
-function renderTemplateWithPetByBreed(tpl: string, pet_by_breed: string) {
-  return tpl.replace(/\{\{\s*pet_by_breed\s*\}\}/g, pet_by_breed ?? "");
-}
-
 import { useI18n } from "@/lib/i18n/index";
 
 
@@ -67,15 +47,6 @@ export default function HomePage() {
   const [selected, setSelected] = useState<Template | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [quality, setQuality] = useState<"normal" | "2k" | "4k">("normal");
-
-  // Pet & Breed selections (for {{pet_by_breed}})
-  const [pet, setPet] = useState<string>("cat");
-  const [breed, setBreed] = useState<string>("");
-  const isCatDog = pet === "cat" || pet === "dog";
-  useEffect(() => {
-    if (!isCatDog) setBreed("");
-  }, [isCatDog]);
-  const petByBreed = useMemo(() => computePetByBreed(pet, breed), [pet, breed]);
 
   const { L } = useI18n();
   // Temporary feature flag: show announcement & hide generate row when true
@@ -406,10 +377,9 @@ export default function HomePage() {
       return;
     }
     setIsLoading(true);
-    // TODO: Implement actual generation with petByBreed
+    // TODO: Implement actual generation
     const promptText = (selected as any).promptText || (selected as any).prompt?.prompt || "";
-    const finalPrompt = renderTemplateWithPetByBreed(promptText, petByBreed);
-    console.log("Generating with prompt:", finalPrompt);
+    console.log("Generating with prompt:", promptText);
     setTimeout(() => setIsLoading(false), 1500);
   };
 
@@ -532,37 +502,6 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Pet & Breed selects */}
-              <div className="flex items-center gap-2">
-                <div className="w-36">
-                  <Select value={pet} onValueChange={(v) => setPet(v)}>
-                    <SelectTrigger className="w-36">
-                      <SelectValue placeholder="宠物" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PETS.map((p) => (
-                        <SelectItem key={p} value={p}>{p}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {isCatDog && (
-                  <div className="w-44">
-                    <Select value={breed} onValueChange={setBreed}>
-                      <SelectTrigger className="w-44">
-                        <SelectValue placeholder="品种" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BREEDS[pet].map((b) => (
-                          <SelectItem key={b} value={b}>{b}</SelectItem>
-                        ))}
-                        <SelectItem value={OTHER}>{OTHER}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
               <RadioGroup
                 value={quality}
                 onValueChange={(v) => setQuality(v as any)}
@@ -586,7 +525,6 @@ export default function HomePage() {
                 onClick={handleGenerate}
                 disabled={isLoading}
                 className="whitespace-nowrap"
-                title={renderTemplateWithPetByBreed("A high-quality portrait of a {{pet_by_breed}} in studio lighting.", petByBreed)}
               >
                 <Zap className="mr-2 h-4 w-4" /> {isLoading ? L.actions.generating : L.actions.start}
               </Button>
