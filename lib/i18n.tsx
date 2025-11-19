@@ -9,7 +9,7 @@ export const I18N = {
     hero: {
       title: "Transform Your Pet Into Art",
       desc:
-        "Upload your pet's photo, choose a reference style and quality, and get a professional result in ~10s.",
+        "Upload your pet's photo, choose a reference style, and get a professional art work.",
     },
     themes: {
       all: "All",
