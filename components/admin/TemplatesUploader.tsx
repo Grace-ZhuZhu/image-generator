@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Check } from "lucide-react";
+import { getImageUrl } from "@/utils/image-url-helper";
 
 export default function TemplatesUploader() {
   const { toast } = useToast();
@@ -28,6 +29,9 @@ export default function TemplatesUploader() {
   const [appendTitle, setAppendTitle] = useState("");
   const [appendPreviews, setAppendPreviews] = useState<string[]>([]);
   const [appendLoading, setAppendLoading] = useState(false);
+  const [existingTemplates, setExistingTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [featuredTemplateId, setFeaturedTemplateId] = useState<string | null>(null);
   const appendFileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate tab state
@@ -77,6 +81,48 @@ export default function TemplatesUploader() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appendFiles]);
+
+  // Fetch existing templates when prompt ID changes
+  useEffect(() => {
+    if (!appendPromptId.trim()) {
+      setExistingTemplates([]);
+      setFeaturedTemplateId(null);
+      return;
+    }
+
+    const fetchTemplates = async () => {
+      try {
+        setLoadingTemplates(true);
+        const res = await fetch(`/api/templates?mode=by-prompt&prompt_id=${appendPromptId.trim()}`);
+        if (!res.ok) {
+          if (res.status === 404) {
+            toast({ title: "Prompt not found", description: "The prompt ID does not exist", variant: "destructive" });
+          }
+          throw new Error(await res.text());
+        }
+        const data = await res.json();
+        setExistingTemplates(data.items || []);
+
+        // Find the current featured template (highest usage)
+        if (data.items && data.items.length > 0) {
+          const featured = data.items.reduce((highest: any, current: any) =>
+            (current.usage > highest.usage) ? current : highest
+          );
+          setFeaturedTemplateId(featured.id);
+        }
+      } catch (e: any) {
+        console.error("Failed to load templates:", e);
+        setExistingTemplates([]);
+        setFeaturedTemplateId(null);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+
+    // Debounce the fetch to avoid too many requests
+    const timer = setTimeout(fetchTemplates, 500);
+    return () => clearTimeout(timer);
+  }, [appendPromptId, toast]);
 
   const canSubmit = useMemo(() => files.length > 0 && !!prompt.trim(), [files, prompt]);
   const canAppend = useMemo(
@@ -229,15 +275,46 @@ export default function TemplatesUploader() {
         title: "Images Appended",
         description: `Added ${data.items?.length || 0} images to prompt ${data.promptId}.`,
       });
-      // reset
+
+      // Refresh the templates list to show newly uploaded images
+      const refreshRes = await fetch(`/api/templates?mode=by-prompt&prompt_id=${appendPromptId.trim()}`);
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        setExistingTemplates(refreshData.items || []);
+      }
+
+      // reset file selection but keep prompt ID
       setAppendFiles([]);
-      setAppendPromptId("");
       setAppendTitle("");
       if (appendFileInputRef.current) appendFileInputRef.current.value = "";
     } catch (e: any) {
       toast({ title: "Append failed", description: e?.message || String(e), variant: "destructive" });
     } finally {
       setAppendLoading(false);
+    }
+  };
+
+  const handleSetFeatured = async (templateId: string) => {
+    try {
+      const res = await fetch(`/api/templates/${templateId}/set-featured`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      await res.json();
+
+      toast({
+        title: "Display Image Set",
+        description: "This image is now the display image for this prompt.",
+      });
+
+      setFeaturedTemplateId(templateId);
+
+      // Refresh the templates list to show updated usage
+      const refreshRes = await fetch(`/api/templates?mode=by-prompt&prompt_id=${appendPromptId.trim()}`);
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        setExistingTemplates(refreshData.items || []);
+      }
+    } catch (e: any) {
+      toast({ title: "Failed to set display image", description: e?.message || String(e), variant: "destructive" });
     }
   };
 
@@ -423,6 +500,60 @@ export default function TemplatesUploader() {
                 Enter the UUID of an existing prompt to append images to it. You can find prompt IDs in the database or from previous uploads.
               </p>
             </div>
+
+            {/* Existing Templates Display */}
+            {loadingTemplates && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-sm text-muted-foreground">Loading templates...</span>
+              </div>
+            )}
+
+            {existingTemplates.length > 0 && (
+              <div className="space-y-2">
+                <Label>Existing Images ({existingTemplates.length})</Label>
+                <p className="text-xs text-muted-foreground">
+                  Check the image you want to set as the display image for this prompt.
+                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-96 overflow-y-auto border rounded-md p-3">
+                  {existingTemplates.map((template: any) => {
+                    const isFeatured = template.id === featuredTemplateId;
+                    const imageUrl = getImageUrl(template.publicUrls, 'md', true);
+
+                    return (
+                      <div
+                        key={template.id}
+                        className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all ${
+                          isFeatured ? 'border-green-500 ring-2 ring-green-200' : 'border-transparent hover:border-gray-300'
+                        }`}
+                        onClick={() => handleSetFeatured(template.id)}
+                      >
+                        <div className="aspect-square relative">
+                          <Image
+                            src={imageUrl}
+                            alt={template.title || 'Template'}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 640px) 33vw, 25vw"
+                          />
+                          {isFeatured && (
+                            <div className="absolute top-1 right-1 bg-green-500 text-white rounded-full p-1">
+                              <Check className="h-3 w-3" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        </div>
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
+                          <p className="text-xs text-white truncate">
+                            Usage: {template.usage}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Additional Images (支持多选)</Label>
