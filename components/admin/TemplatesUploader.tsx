@@ -73,10 +73,10 @@ export default function TemplatesUploader() {
   };
 
   const generateCharCount = getCharCount(generatePrompt);
-  const isGeneratePromptValid =
-    generatePrompt.trim().length > 0 &&
-    generateCharCount.chineseChars <= 300 &&
-    generateCharCount.englishWords <= 600;
+  const isGeneratePromptValid = generatePrompt.trim().length > 0;
+  const isPromptTooLong =
+    generateCharCount.chineseChars > 300 ||
+    generateCharCount.englishWords > 600;
 
   const removeAt = (idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
@@ -419,24 +419,35 @@ export default function TemplatesUploader() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={onGenerate}
-                disabled={!isGeneratePromptValid || generating}
-              >
-                {generating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  "Generate Image"
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={onGenerate}
+                  disabled={!isGeneratePromptValid || generating}
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    "Generate Image"
+                  )}
+                </Button>
+                {!isGeneratePromptValid && (
+                  <span className="text-sm text-muted-foreground">
+                    Please enter a prompt
+                  </span>
                 )}
-              </Button>
-              {!isGeneratePromptValid && generatePrompt.trim().length > 0 && (
-                <span className="text-sm text-red-500">
-                  Prompt exceeds character limit
-                </span>
+              </div>
+              {isPromptTooLong && (
+                <div className="text-sm text-amber-600 flex items-start gap-2">
+                  <span className="text-base">⚠️</span>
+                  <span>
+                    Warning: Prompt exceeds recommended limit (300 Chinese characters or 600 English words).
+                    This may affect generation quality or fail.
+                  </span>
+                </div>
               )}
             </div>
 
