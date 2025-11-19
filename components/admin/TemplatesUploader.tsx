@@ -22,6 +22,14 @@ export default function TemplatesUploader() {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Append tab state
+  const [appendPromptId, setAppendPromptId] = useState("");
+  const [appendFiles, setAppendFiles] = useState<File[]>([]);
+  const [appendTitle, setAppendTitle] = useState("");
+  const [appendPreviews, setAppendPreviews] = useState<string[]>([]);
+  const [appendLoading, setAppendLoading] = useState(false);
+  const appendFileInputRef = useRef<HTMLInputElement>(null);
+
   // Generate tab state
   const [generatePrompt, setGeneratePrompt] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -58,7 +66,23 @@ export default function TemplatesUploader() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [referenceImages]);
 
+  useEffect(() => {
+    // manage object URLs for append tab
+    appendPreviews.forEach((url) => URL.revokeObjectURL(url));
+    setAppendPreviews(appendFiles.map((f) => URL.createObjectURL(f)));
+    return () => {
+      appendPreviews.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appendFiles]);
+
   const canSubmit = useMemo(() => files.length > 0 && !!prompt.trim(), [files, prompt]);
+  const canAppend = useMemo(
+    () => appendFiles.length > 0 && !!appendPromptId.trim(),
+    [appendFiles, appendPromptId]
+  );
 
   // Character counter helper
   const getCharCount = (text: string) => {
@@ -87,6 +111,18 @@ export default function TemplatesUploader() {
     if (picked.length === 0) return;
     setFiles((prev) => [...prev, ...picked]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Append tab handlers
+  const removeAppendAt = (idx: number) => {
+    setAppendFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const onAppendFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+    setAppendFiles((prev) => [...prev, ...picked]);
+    if (appendFileInputRef.current) appendFileInputRef.current.value = "";
   };
 
   // Reference image handlers for Generate tab
@@ -174,6 +210,34 @@ export default function TemplatesUploader() {
       toast({ title: "Upload failed", description: e?.message || String(e) });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onAppendSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canAppend) return;
+    try {
+      setAppendLoading(true);
+      const fd = new FormData();
+      for (const f of appendFiles) fd.append("files", f);
+      fd.append("prompt_id", appendPromptId.trim());
+      if (appendTitle.trim()) fd.append("title", appendTitle.trim());
+      const res = await fetch("/api/templates/append", { method: "POST", body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      toast({
+        title: "Images Appended",
+        description: `Added ${data.items?.length || 0} images to prompt ${data.promptId}.`,
+      });
+      // reset
+      setAppendFiles([]);
+      setAppendPromptId("");
+      setAppendTitle("");
+      if (appendFileInputRef.current) appendFileInputRef.current.value = "";
+    } catch (e: any) {
+      toast({ title: "Append failed", description: e?.message || String(e), variant: "destructive" });
+    } finally {
+      setAppendLoading(false);
     }
   };
 
@@ -274,8 +338,9 @@ export default function TemplatesUploader() {
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="upload">Upload</TabsTrigger>
+          <TabsTrigger value="append">Append</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
         </TabsList>
 
@@ -340,6 +405,77 @@ export default function TemplatesUploader() {
                 {loading ? "Uploading..." : "Upload Templates"}
               </Button>
               {!canSubmit && <span className="text-sm text-muted-foreground">Select images and enter prompt to enable</span>}
+            </div>
+          </form>
+        </TabsContent>
+
+        {/* Append Tab */}
+        <TabsContent value="append">
+          <form onSubmit={onAppendSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Prompt ID (Required)</Label>
+              <Input
+                value={appendPromptId}
+                onChange={(e) => setAppendPromptId(e.target.value)}
+                placeholder="Enter the existing prompt UUID"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the UUID of an existing prompt to append images to it. You can find prompt IDs in the database or from previous uploads.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Additional Images (支持多选)</Label>
+              <input
+                ref={appendFileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={onAppendFileChange}
+              />
+              {appendPreviews.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {appendPreviews.map((src, i) => (
+                    <div key={i} className="relative h-20 w-20">
+                      <Image
+                        src={src}
+                        alt={`preview-${i}`}
+                        width={80}
+                        height={80}
+                        className="h-20 w-20 object-cover rounded border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeAppendAt(i)}
+                        className="absolute -top-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border bg-background text-muted-foreground hover:bg-muted"
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Title (optional)</Label>
+              <Input
+                value={appendTitle}
+                onChange={(e) => setAppendTitle(e.target.value)}
+                placeholder="e.g. Christmas Puppy"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={!canAppend || appendLoading}>
+                {appendLoading ? "Appending..." : "Append Images"}
+              </Button>
+              {!canAppend && (
+                <span className="text-sm text-muted-foreground">
+                  Enter prompt ID and select images to enable
+                </span>
+              )}
             </div>
           </form>
         </TabsContent>
