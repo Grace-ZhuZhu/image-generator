@@ -19,6 +19,9 @@ import { Share2, Zap, Flame, RefreshCw, Download, X, Plus, Loader2, ZoomIn, Zoom
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { Template } from "@/types/templates";
 import { Input } from "@/components/ui/input";
+import { ResultsViewToggle } from "@/components/ResultsViewToggle";
+import { HistoryGridView } from "@/components/HistoryGridView";
+import type { GeneratedImage, ResultsViewMode } from "@/types/generated-images";
 
 
 const THEMES = [
@@ -51,6 +54,11 @@ export default function HomePage() {
   const { L } = useI18n();
   // Temporary feature flag: show announcement & hide generate row when true
   const SHOW_ANNOUNCEMENT = true;
+
+  // Results section view mode state
+  const [resultsViewMode, setResultsViewMode] = useState<ResultsViewMode>("hidden");
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [currentGeneratedImage, setCurrentGeneratedImage] = useState<GeneratedImage | null>(null);
 
 
   // Templates data from API - Three-level structure:
@@ -377,10 +385,36 @@ export default function HomePage() {
       return;
     }
     setIsLoading(true);
+
+    // Show results section in sidebar mode when generating
+    setResultsViewMode("sidebar");
+
     // TODO: Implement actual generation
     const promptText = (selected as any).promptText || (selected as any).prompt?.prompt || "";
     console.log("Generating with prompt:", promptText);
-    setTimeout(() => setIsLoading(false), 1500);
+
+    // Simulate generation - replace with actual API call
+    setTimeout(() => {
+      // Create a mock generated image
+      const mockImage: GeneratedImage = {
+        id: `gen-${Date.now()}`,
+        url: getImageUrlWithFallback(selected.publicUrls, ['lg', 'md']),
+        prompt: promptText,
+        template_id: selected.id,
+        created_at: new Date().toISOString(),
+        size: quality === "4k" ? "4K" : quality === "2k" ? "2K" : "1K",
+        quality: quality,
+      };
+
+      setCurrentGeneratedImage(mockImage);
+      setGeneratedImages(prev => [mockImage, ...prev]);
+      setIsLoading(false);
+
+      toast({
+        title: "生成成功",
+        description: "图片已生成并添加到历史记录",
+      });
+    }, 1500);
   };
 
   // Temporary notify: simple email validator
@@ -605,9 +639,19 @@ export default function HomePage() {
 
       {/* 主布局：左侧瀑布流 + 右侧结果面板 */}
       <section className="container mx-auto max-w-[1400px] px-4 pb-40">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 左：主题与参考图 */}
-          <div className="lg:col-span-2">
+        <div className="flex gap-0 relative">
+          {/* 左：主题与参考图 - 动态宽度 */}
+          <div
+            className="transition-all duration-300"
+            style={{
+              width: resultsViewMode === "hidden"
+                ? "100%"
+                : resultsViewMode === "sidebar"
+                ? "calc(100% - 400px)"
+                : "40%",
+              paddingRight: resultsViewMode !== "hidden" ? "16px" : "0"
+            }}
+          >
             <div className="flex items-center justify-between gap-2">
               <Tabs value={theme} onValueChange={(v) => setTheme(v as any)}>
                 <TabsList className="flex w-full flex-wrap gap-2">
@@ -946,31 +990,101 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* 右：结果面板与历史 */}
-          <div className="lg:sticky lg:top-20 h-fit space-y-4">
-            <Card className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold">{L.ui.current}</h3>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm"><Download className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="sm"><RefreshCw className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="sm"><Share2 className="h-4 w-4" /></Button>
+          {/* 右：结果面板 - 条件显示 */}
+          {resultsViewMode !== "hidden" && (
+            <div
+              className="flex-shrink-0 transition-all duration-300"
+              style={{
+                width: resultsViewMode === "sidebar" ? "400px" : "60%"
+              }}
+            >
+              {resultsViewMode === "expanded" ? (
+                // 展开模式：显示历史图片网格
+                <div className="h-[calc(100vh-300px)] flex flex-col">
+                  <div className="mb-4">
+                    <ResultsViewToggle
+                      currentMode={resultsViewMode}
+                      onModeChange={setResultsViewMode}
+                    />
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <HistoryGridView
+                      images={generatedImages}
+                      onImageClick={(image) => {
+                        console.log("Clicked image:", image);
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="aspect-square w-full rounded-md border bg-muted/30 flex items-center justify-center text-muted-foreground">
-                {isLoading ? L.ui.generating : L.ui.placeholder}
-              </div>
-            </Card>
+              ) : (
+                // 侧边栏模式：显示当前结果和小缩略图
+                <div className="lg:sticky lg:top-20 h-fit space-y-4">
+                  <ResultsViewToggle
+                    currentMode={resultsViewMode}
+                    onModeChange={setResultsViewMode}
+                  />
 
-            <Card className="p-4">
-              <div className="mb-3 font-semibold">{L.ui.history}</div>
-              <div className="flex gap-3 overflow-x-auto">
-                {[1, 2, 3, 4, 5].map((k) => (
-                  <div key={k} className="min-w-20 h-20 rounded-md border bg-muted/30" />
-                ))}
-              </div>
-            </Card>
-          </div>
+                  <Card className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold">{L.ui.current}</h3>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="aspect-square w-full rounded-md border bg-muted/30 flex items-center justify-center text-muted-foreground overflow-hidden">
+                      {isLoading ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="h-8 w-8 animate-spin" />
+                          <span className="text-sm">{L.ui.generating}</span>
+                        </div>
+                      ) : currentGeneratedImage ? (
+                        <img
+                          src={currentGeneratedImage.url}
+                          alt={currentGeneratedImage.prompt}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        L.ui.placeholder
+                      )}
+                    </div>
+                  </Card>
+
+                  <Card className="p-4">
+                    <div className="mb-3 font-semibold">{L.ui.history}</div>
+                    <div className="flex gap-3 overflow-x-auto">
+                      {generatedImages.length === 0 ? (
+                        Array.from({ length: 5 }).map((_, k) => (
+                          <div key={k} className="min-w-20 h-20 rounded-md border bg-muted/30 flex-shrink-0" />
+                        ))
+                      ) : (
+                        generatedImages.slice(0, 10).map((img) => (
+                          <div
+                            key={img.id}
+                            className="min-w-20 h-20 rounded-md border overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
+                            onClick={() => setCurrentGeneratedImage(img)}
+                          >
+                            <img
+                              src={img.url}
+                              alt={img.prompt}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </Card>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
