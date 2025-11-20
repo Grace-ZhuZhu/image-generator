@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Loader2, Check } from "lucide-react";
+import { Download, Loader2, Check, Trash2 } from "lucide-react";
 import { getImageUrl } from "@/utils/image-url-helper";
 
 export default function TemplatesUploader() {
@@ -318,6 +318,36 @@ export default function TemplatesUploader() {
     }
   };
 
+  const handleDeleteTemplate = async (templateId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent triggering the parent onClick (set featured)
+
+    if (!confirm("Are you sure you want to delete this image? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/templates/${templateId}/delete`, { method: "DELETE" });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+
+      toast({
+        title: "Image Deleted",
+        description: `Successfully deleted the image and ${data.deletedFiles || 0} files from storage.`,
+      });
+
+      // Update local state to remove the deleted template
+      setExistingTemplates(prev => prev.filter(t => t.id !== templateId));
+
+      // If the deleted template was the featured one, clear the featured state
+      if (featuredTemplateId === templateId) {
+        setFeaturedTemplateId(null);
+      }
+    } catch (e: any) {
+      toast({ title: "Failed to delete image", description: e?.message || String(e), variant: "destructive" });
+    }
+  };
+
   const onGenerate = async () => {
     if (!isGeneratePromptValid) return;
     try {
@@ -513,7 +543,7 @@ export default function TemplatesUploader() {
               <div className="space-y-2">
                 <Label>Existing Images ({existingTemplates.length})</Label>
                 <p className="text-xs text-muted-foreground">
-                  Check the image you want to set as the display image for this prompt.
+                  Click an image to set it as the display image. Click the trash icon to delete an image.
                 </p>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-96 overflow-y-auto border rounded-md p-3">
                   {existingTemplates.map((template: any) => {
@@ -523,12 +553,14 @@ export default function TemplatesUploader() {
                     return (
                       <div
                         key={template.id}
-                        className={`relative group cursor-pointer rounded-md overflow-hidden border-2 transition-all ${
+                        className={`relative group rounded-md overflow-hidden border-2 transition-all ${
                           isFeatured ? 'border-green-500 ring-2 ring-green-200' : 'border-transparent hover:border-gray-300'
                         }`}
-                        onClick={() => handleSetFeatured(template.id)}
                       >
-                        <div className="aspect-square relative">
+                        <div
+                          className="aspect-square relative cursor-pointer"
+                          onClick={() => handleSetFeatured(template.id)}
+                        >
                           <Image
                             src={imageUrl}
                             alt={template.title || 'Template'}
@@ -537,13 +569,23 @@ export default function TemplatesUploader() {
                             sizes="(max-width: 640px) 33vw, 25vw"
                           />
                           {isFeatured && (
-                            <div className="absolute top-1 right-1 bg-green-500 text-white rounded-full p-1">
+                            <div className="absolute top-1 right-1 bg-green-500 text-white rounded-full p-1 z-10">
                               <Check className="h-3 w-3" />
                             </div>
                           )}
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                          {/* Delete button */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteTemplate(template.id, e)}
+                            className="absolute top-1 left-1 z-20 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:scale-110"
+                            aria-label="Delete image"
+                            title="Delete this image"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
                         </div>
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1">
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1 pointer-events-none">
                           <p className="text-xs text-white truncate">
                             Usage: {template.usage}
                           </p>
