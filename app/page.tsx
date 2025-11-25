@@ -689,7 +689,7 @@ export default function HomePage() {
 
               {/* 画廊区域 - 瀑布流布局，每个图片使用独立的 LazyImage 占位符 */}
               <TooltipProvider>
-                        <div className="columns-2 sm:columns-3 lg:columns-4 gap-4 space-y-4">
+                        <div className={expandedPromptId ? "columns-2 sm:columns-3 lg:columns-4 gap-4 space-y-4" : "columns-2 sm:columns-3 lg:columns-5 gap-4 space-y-4"}>
                           {/* 如果正在加载且没有数据，显示骨架屏卡片 */}
                           {(loadingTemplates || loadingPromptTemplates) && displayedTemplates.length === 0 ? (
                             Array.from({ length: 6 }).map((_, index) => (
