@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+// 强制动态渲染（因为需要读取 URL 参数）
+export const dynamic = 'force-dynamic';
+
 function parseOrder(value: string | null | undefined): "asc" | "desc" {
   return value === "asc" ? "asc" : "desc"; // default desc for popularity
 }

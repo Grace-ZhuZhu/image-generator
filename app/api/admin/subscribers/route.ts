@@ -3,6 +3,9 @@ import { createClient } from "@/utils/supabase/server";
 import { createServiceRoleClient } from "@/utils/supabase/service-role";
 import { adminAccessAllowed } from "@/utils/admin";
 
+// 强制动态渲染（因为需要读取 URL 参数）
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);

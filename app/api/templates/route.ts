@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+// 强制动态渲染（因为需要读取 URL 参数）
+export const dynamic = 'force-dynamic';
+
 // 启用 ISR（Incremental Static Regeneration）
 // 每 60 秒重新验证缓存
 export const revalidate = 60;
