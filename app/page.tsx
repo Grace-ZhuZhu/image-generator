@@ -615,26 +615,28 @@ export default function HomePage() {
       {/* 顶部悬浮操作栏占位，避免覆盖内容 */}
       <div className={SHOW_ANNOUNCEMENT ? "h-32" : "h-20"} />
 
-      {/* Hero Section - 保留 */}
-      <section className="relative overflow-hidden py-16 md:py-20 px-4">
-        <div className="container mx-auto max-w-[1400px]">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center space-y-6"
-          >
-            <div className="space-y-3">
-              <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                {L.hero.title}
-              </h1>
-              <p className="text-base md:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                {L.hero.desc}
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      {/* Hero Section - 只在主页（未进入 template 详情时）显示 */}
+      {!expandedPromptId && (
+        <section className="relative overflow-hidden py-16 md:py-20 px-4">
+          <div className="container mx-auto max-w-[1400px]">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="text-center space-y-6"
+            >
+              <div className="space-y-3">
+                <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  {L.hero.title}
+                </h1>
+                <p className="text-base md:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+                  {L.hero.desc}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
 
       {/* 主布局：左侧瀑布流 + 右侧结果面板 */}
@@ -666,30 +668,38 @@ export default function HomePage() {
             </div>
 
             <div className="mt-4">
-              {expandedPromptId && (
-                <div className="mb-4 flex items-center gap-3">
-                  <Button variant="outline" size="sm" onClick={() => setExpandedPromptId(null)}>
-                    ← {L.ui.back}
-                  </Button>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="prompt-checkbox"
-                      checked={selected?.prompt_id === expandedPromptId}
-                      onCheckedChange={() => handleCheckboxToggle(expandedPromptId)}
-                    />
-                    <label
-                      htmlFor="prompt-checkbox"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              {expandedPromptId ? (
+                // 详情页布局：左侧固定按钮 + 右侧图片网格
+                <div className="relative">
+                  {/* 左侧固定按钮区域 - 使用 fixed 定位，top-52 让按钮与图片顶部对齐 */}
+                  <div className="fixed left-8 top-72 z-40 space-y-3 w-20">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setExpandedPromptId(null)}
+                      className="w-full shadow-lg"
                     >
-                      {L.ui.useStyleAsTemplate}
-                    </label>
+                      ← {L.ui.back}
+                    </Button>
+                    <div className="flex flex-col items-center gap-2 p-2 border rounded-md bg-background shadow-lg">
+                      <Checkbox
+                        id="prompt-checkbox"
+                        checked={selected?.prompt_id === expandedPromptId}
+                        onCheckedChange={() => handleCheckboxToggle(expandedPromptId)}
+                      />
+                      <label
+                        htmlFor="prompt-checkbox"
+                        className="text-xs text-center leading-tight cursor-pointer"
+                      >
+                        {L.ui.useStyleAsTemplate}
+                      </label>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {/* 画廊区域 - 瀑布流布局，每个图片使用独立的 LazyImage 占位符 */}
-              <TooltipProvider>
-                        <div className={expandedPromptId ? "columns-2 sm:columns-3 lg:columns-4 gap-4 space-y-4" : "columns-2 sm:columns-3 lg:columns-5 gap-4 space-y-4"}>
+                  {/* 右侧图片网格区域 - 添加左边距为固定按钮留出空间 */}
+                  <div className="pl-28">
+                    <TooltipProvider>
+                      <div className="columns-2 sm:columns-3 lg:columns-4 gap-4 space-y-4">
                           {/* 如果正在加载且没有数据，显示骨架屏卡片 */}
                           {(loadingTemplates || loadingPromptTemplates) && displayedTemplates.length === 0 ? (
                             Array.from({ length: 6 }).map((_, index) => (
@@ -986,7 +996,231 @@ export default function HomePage() {
                           </Dialog>
                         );
                       })()}
-              </TooltipProvider>
+                    </TooltipProvider>
+                  </div>
+                </div>
+              ) : (
+                // 主页布局：全宽图片网格
+                <TooltipProvider>
+                  <div className="columns-2 sm:columns-3 lg:columns-5 gap-4 space-y-4">
+                    {/* 如果正在加载且没有数据，显示骨架屏卡片 */}
+                    {(loadingTemplates || loadingPromptTemplates) && displayedTemplates.length === 0 ? (
+                      Array.from({ length: 6 }).map((_, index) => (
+                        <Card key={`skeleton-${index}`} className="overflow-hidden break-inside-avoid mb-4">
+                          <div className="w-full aspect-square">
+                            <Skeleton className="w-full h-full" />
+                          </div>
+                          <div className="p-3 space-y-2">
+                            <Skeleton className="h-4 w-12" />
+                            <Skeleton className="h-4 w-full" />
+                          </div>
+                        </Card>
+                      ))
+                    ) : (
+                      displayedTemplates.map((item, index) => (
+                      <Card
+                        key={item.id}
+                        onClick={() => {
+                          if (!expandedPromptId) {
+                            handleTemplateClick(item);
+                          } else {
+                            handleImageClick(item);
+                          }
+                        }}
+                        className="cursor-pointer overflow-hidden transition hover:shadow-md relative break-inside-avoid mb-4"
+                      >
+                        {/* Checkbox - only show in first layer (representatives view) */}
+                        {!expandedPromptId && (
+                          <div className="absolute top-2 right-2 z-10">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  onClick={(e) => handleCheckboxToggle(item.prompt_id, e)}
+                                  className="bg-white/90 dark:bg-gray-800/90 rounded p-1 shadow-sm hover:bg-white dark:hover:bg-gray-800 transition"
+                                >
+                                  <Checkbox
+                                    checked={selected?.prompt_id === item.prompt_id}
+                                    onCheckedChange={() => {}}
+                                    className="pointer-events-none"
+                                  />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{L.ui.useStyleAsTemplate}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        )}
+
+                        <div className="w-full overflow-hidden">
+                          <ResponsiveImage
+                            publicUrls={item.publicUrls}
+                            size="md"
+                            alt={item.title || "Template"}
+                            width={320}
+                            height={320}
+                            priority={index < 6}
+                            className="w-full h-auto object-contain transition hover:scale-105"
+                          />
+                        </div>
+                        <div className="p-3">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Flame className="h-3.5 w-3.5 text-orange-500" />
+                            <span>{item.usage}</span>
+                          </div>
+                          {item.title && <div className="mt-1 text-sm font-medium line-clamp-1">{item.title}</div>}
+                        </div>
+                      </Card>
+                    ))
+                    )}
+                  </div>
+
+                  {/* Pagination controls - only show when not expanded */}
+                  {!expandedPromptId && totalPages > 1 && (
+                    <div className="mt-6 flex items-center justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        上一页
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        第 {currentPage} / {totalPages} 页 (共 {totalItems} 个提示词)
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        下一页
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Image viewer dialog */}
+                  {viewingImage && (() => {
+                    const { current, total } = getCarouselPosition();
+                    const { jpg, webp } = getImageUrl(viewingImage.publicUrls, 'orig', false);
+
+                    return (
+                      <Dialog open={!!viewingImage} onOpenChange={() => setViewingImage(null)}>
+                        <DialogContent className="max-w-[98vw] max-h-[98vh] p-2 sm:p-4">
+                          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <DialogTitle className="text-base sm:text-lg">
+                              {viewingImage.title || "Template"}
+                            </DialogTitle>
+                            <div className="flex items-center gap-2">
+                              {/* Carousel navigation */}
+                              {total > 1 && (
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handlePrevImage}
+                                    disabled={current === 1}
+                                  >
+                                    ←
+                                  </Button>
+                                  <span className="text-sm text-muted-foreground">
+                                    {current} / {total}
+                                  </span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleNextImage}
+                                    disabled={current === total}
+                                  >
+                                    →
+                                  </Button>
+                                </div>
+                              )}
+                              {/* Zoom controls */}
+                              <div className="flex items-center gap-1 border-l pl-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleZoomOut}
+                                  disabled={zoomLevel <= 1}
+                                >
+                                  <ZoomOut className="h-4 w-4" />
+                                </Button>
+                                <span className="text-xs text-muted-foreground min-w-12 text-center">
+                                  {Math.round(zoomLevel * 100)}%
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleZoomIn}
+                                  disabled={zoomLevel >= 3}
+                                >
+                                  <ZoomIn className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogHeader>
+                          <div className="relative flex items-center justify-center overflow-auto">
+                            {imageLoading && !imageError && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <Skeleton className="w-full h-full max-w-[95vw] max-h-[95vh]" />
+                              </div>
+                            )}
+                            {imageError && (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted/10">
+                                <AlertCircle className="h-12 w-12 text-muted-foreground" />
+                                <p className="text-sm text-muted-foreground">图片加载失败</p>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleImageRetry}
+                                  disabled={imageRetryCount >= 3}
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  重试 {imageRetryCount > 0 && `(${imageRetryCount}/3)`}
+                                </Button>
+                              </div>
+                            )}
+                            {!imageError && (
+                              (() => {
+                                if (!jpg) {
+                                  return <p className="text-sm text-muted-foreground">无可用图片</p>;
+                                }
+
+                                return (
+                                  <picture key={imageRetryCount}>
+                                    {webp && <source srcSet={`${webp}?retry=${imageRetryCount}`} type="image/webp" />}
+                                    <img
+                                      src={`${jpg}?retry=${imageRetryCount}`}
+                                      alt={viewingImage.title || "Template"}
+                                      width={1920}
+                                      height={1920}
+                                      loading="eager"
+                                      crossOrigin="anonymous"
+                                      onLoad={() => {
+                                        setImageLoading(false);
+                                        setImageError(false);
+                                      }}
+                                      onError={handleImageError}
+                                      className="max-w-[95vw] max-h-[95vh] w-auto h-auto object-contain transition-all duration-300"
+                                      style={{
+                                        transform: `scale(${zoomLevel})`,
+                                        transformOrigin: "center center",
+                                        opacity: imageLoading ? 0 : 1
+                                      }}
+                                    />
+                                  </picture>
+                                );
+                              })()
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    );
+                  })()}
+                </TooltipProvider>
+              )}
             </div>
           </div>
 
